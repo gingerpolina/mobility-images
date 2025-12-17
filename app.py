@@ -1,15 +1,14 @@
 import streamlit as st
 import requests
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 import urllib.parse
 from deep_translator import GoogleTranslator
 import random
 
-# --- ЖЕСТКИЙ РЕФЕРЕНС (СИЛУЭТ САМОКАТА) ---
-# Это ссылка на черно-белый контур правильного самоката.
-# Нейросеть будет использовать его как трафарет.
-CONTROL_IMAGE_URL = "https://i.imgur.com/Lm3Yc5E.png"
+# --- ССЫЛКА ПО УМОЛЧАНИЮ (Ninebot Max, ч/б) ---
+# Если вы ничего не загрузите, будет использован этот "чистый" самокат такой же формы
+DEFAULT_CONTROL_URL = "https://i.imgur.com/1p7qJ7z.png" # Пример силуэта
 
 # --- НАСТРОЙКИ СТИЛЯ ---
 GLOBAL_STYLE = """
@@ -18,12 +17,45 @@ COLOR PALETTE: Predominantly Soft Whites (#EAF0F9) and Blue (#0668D7), with Acce
 BACKGROUND: Isolated on a COMPLETELY FLAT, SOLID single color background (Soft White). NO shadows, no gradients.
 """
 
-NEGATIVE_PROMPT = "seat, saddle, vespa, moped, motorcycle, engine, photorealistic, realistic, low quality, text, watermark, shadow on wall, complex background"
+NEGATIVE_PROMPT = "purple, violet, lilac, seat, saddle, vespa, moped, motorcycle, engine, photorealistic, realistic, low quality, text, watermark, shadow on wall, complex background"
 
 st.set_page_config(page_title="Universal 3D Generator", layout="centered", page_icon="🛴")
-st.title("🎨 3D Генератор + Референс формы")
-st.caption("Теперь с жестким контролем формы самоката через картинку-образец.")
+st.title("🎨 3D Генератор + Ваш Референс")
+st.caption("Загрузите картинку самоката, и нейросеть возьмет с неё форму (игнорируя цвет).")
 
+# --- БОКОВАЯ ПАНЕЛЬ ДЛЯ ЗАГРУЗКИ ---
+with st.sidebar:
+    st.header("1. Загрузка референса")
+    uploaded_file = st.file_uploader("Перетащите сюда скриншот самоката", type=["png", "jpg", "jpeg"])
+    
+    control_url = DEFAULT_CONTROL_URL
+    
+    if uploaded_file is not None:
+        try:
+            # 1. Открываем и удаляем цвет (делаем Ч/Б)
+            img = Image.open(uploaded_file).convert("L") # L = Grayscale
+            st.image(img, caption="Ваш референс (цвет удален)", use_container_width=True)
+            
+            # 2. Сохраняем в память
+            byte_io = io.BytesIO()
+            img.save(byte_io, "PNG")
+            byte_io.seek(0)
+            
+            # 3. Трюк: Загружаем на временный хостинг (file.io), чтобы получить URL для нейросети
+            # Pollinations нужен публичный URL, он не видит файлы на вашем компьютере.
+            with st.spinner("Подготовка референса..."):
+                files = {'file': ('ref.png', byte_io, 'image/png')}
+                # Используем file.io (хранит файл 14 дней или до 1 скачивания)
+                r = requests.post('https://file.io/?expires=1d', files=files)
+                if r.status_code == 200:
+                    control_url = r.json()['link']
+                    st.success("Референс обработан!")
+                else:
+                    st.error("Не удалось обработать файл. Будет использован стандартный.")
+        except Exception as e:
+            st.error(f"Ошибка обработки: {e}")
+
+# --- ОСНОВНАЯ ФОРМА ---
 with st.form("prompt_form"):
     user_input = st.text_area("Что изобразить?", value="Электросамокат стоит рядом с новогодней елкой с подарками", height=100)
     
@@ -39,19 +71,18 @@ with st.form("prompt_form"):
     submit = st.form_submit_button("✨ Сгенерировать")
 
 if submit and user_input:
-    st.info("Обрабатываю запрос...")
+    st.info("Генерирую...")
     
     try:
         # 1. Перевод
         translator = GoogleTranslator(source='auto', target='en')
         translated_text = translator.translate(user_input)
         
-        # 2. Логика референса
-        is_scooter = "scooter" in translated_text.lower()
+        # 2. Логика (Самокат или нет?)
+        is_scooter = "scooter" in translated_text.lower() or "kick" in translated_text.lower()
         
         if is_scooter:
-            st.toast("🛴 Применяю жесткий трафарет формы самоката (ControlNet).")
-            # Уточняем текст, хотя главную роль сыграет картинка
+             # Если самокат, меняем слово на kick scooter (чтобы не было мопеда)
             final_text = translated_text.replace("scooter", "kick scooter without seat")
         else:
             final_text = translated_text
@@ -61,16 +92,12 @@ if submit and user_input:
         encoded_prompt = urllib.parse.quote(full_prompt)
         seed = random.randint(1, 100000)
         
-        # 4. Формирование URL (САМОЕ ВАЖНОЕ)
+        # 4. Формирование URL
         base_url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
         
-        # Если это самокат, добавляем параметр image с нашим силуэтом
         if is_scooter:
-            # control=0.8 означает, что нейросеть должна на 80% придерживаться формы на картинке
-            final_url = f"{base_url}&image={CONTROL_IMAGE_URL}&control=0.8"
-            # Показываем референс для понимания
-            with st.expander("Посмотреть используемый трафарет"):
-                st.image(CONTROL_IMAGE_URL, width=200)
+            # Используем либо загруженный вами Ч/Б файл, либо стандартный
+            final_url = f"{base_url}&image={control_url}&control=0.65" # 0.65 - баланс между формой и креативом
         else:
             final_url = base_url
         
@@ -82,7 +109,7 @@ if submit and user_input:
             image = Image.open(io.BytesIO(image_data))
             
             st.success("Готово!")
-            st.image(image, caption=f"Результат ({size_option})", use_container_width=True)
+            st.image(image, caption="Результат", use_container_width=True)
             
             st.download_button(
                 label="⬇️ Скачать PNG",
