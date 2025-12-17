@@ -19,7 +19,7 @@ USER REQUEST:
 # -----------------------------------------------------
 
 st.set_page_config(page_title="3D Brand Generator", layout="centered", page_icon="🛴")
-st.title("🛴 Корпоративный 3D Генератор (Imagen 4)")
+st.title("🛴 Корпоративный 3D Генератор")
 
 # Получаем ключ из секретов
 try:
@@ -38,7 +38,7 @@ with st.form("prompt_form"):
 
 if submit and user_prompt:
     # Используем модель, которая была найдена в вашем списке
-    model_name = 'imagen-4.0-fast-generate-001'
+    model_name = 'gemini-2.0-flash-exp'
     st.info(f"Генерирую изображение моделью {model_name}...")
     
     full_prompt = STYLE_PREFIX + " " + user_prompt
