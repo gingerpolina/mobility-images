@@ -11,8 +11,8 @@ import datetime
 # --- CONFIG ---
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
-st.set_page_config(page_title="Urent Gen v38 (Gravity Fix)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v38: Гравитация")
+st.set_page_config(page_title="Urent Gen v39 (Toy Body)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v39: Универсальная Форма")
 
 if 'last_image_bytes' not in st.session_state: st.session_state.last_image_bytes = None
 if 'last_image_size' not in st.session_state: st.session_state.last_image_size = (0, 0)
@@ -83,20 +83,23 @@ with tab1:
             env_en = translate_text(env_input) if env_input else ""
             pass_en = translate_text(passenger_input) if passenger_input else ""
 
-            # --- ИСПРАВЛЕННАЯ ЛОГИКА ПАССАЖИРА (V38 - GRAVITY) ---
+            # --- ИСПРАВЛЕННАЯ ЛОГИКА ПАССАЖИРА (V39 - UNIVERSAL TOY BODY) ---
             if pass_en:
                 if "Самокат" in mode:
-                    # Руки работают (v36), добавляем Гравитацию для ног
                     passenger_prompt = (
                         "RIDER: A cute 3D plastic toy character of " + pass_en + ". " +
-                        "BODY: Anthropomorphic. " +
+                        # 1. ЕДИНАЯ ФОРМА ТЕЛА
+                        "BODY SHAPE: Universal simplified round vinyl toy shape. Chubby, anthropomorphic, minimalistic. " +
+                        "PROPORTIONS: Short legs, round tummy, large simplified head. " +
+                        "FACE: Minimalist. Eyes are simple small BLACK DOTS (pimpules). No complex fur details. " +
+                        # 2. ФИЗИКА (Из v38)
                         "ARMS: Arms extended, HANDS FIRMLY GRIPPING THE T-HANDLEBARS. " +
                         "LEGS: KNEES SLIGHTLY BENT for stability. " + 
-                        "FEET: SOLES OF FEET FLAT ON THE DECK SURFACE. ZERO GAP between feet and deck. " +
-                        "POSE: Weight bearing standing pose. Grounded. NOT levitating. NOT sitting."
+                        "FEET: SOLES OF FEET FLAT ON THE DECK SURFACE. ZERO GAP. " +
+                        "POSE: Weight bearing standing pose. Grounded. NOT levitating."
                     )
                 else:
-                    passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + "."
+                    passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + ". Simple round vinyl toy style."
             else:
                 passenger_prompt = "No rider. Empty flat deck. ((NO SEAT))."
             # ----------------------------------------------------
