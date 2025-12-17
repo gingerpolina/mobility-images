@@ -7,9 +7,9 @@ from deep_translator import GoogleTranslator
 import random
 import time
 
-# --- НАСТРОЙКИ 9.0 (ВОЗВРАТ К ДЕТАЛЯМ) ---
+# --- БЛОК СТИЛЯ (ВЕРСИЯ 9.0 - ТЯЖЕЛЫЙ ЛЮКС) ---
+# Мы сохраняем эти настройки, потому что они давали лучший визуальный результат.
 
-# 1. СТИЛЬ: Максимально подробный, чтобы перебить реализм.
 STYLE_PREFIX = """
 ((3D Product Render)), ((Claymorphism Style)), ((Matte Soft-Touch Plastic)).
 LOOK: Minimalist, Clean geometry, Toy-like but premium.
@@ -18,8 +18,7 @@ LIGHTING: Studio softbox, global illumination, no harsh shadows.
 
 STYLE_SUFFIX = "Made of matte plastic. Unreal Engine 5 render. Blender 3D."
 
-# 2. АНАТОМИЯ: Используем слово KICKBOARD вместо Scooter.
-# Это "хак", чтобы Flux перестал рисовать мопеды.
+# Используем KICKBOARD, чтобы не было сиденья
 OBJECT_CORE = """
 OBJECT: A modern Electric Kickboard (Stand-up vehicle).
 FORM: 
@@ -31,7 +30,6 @@ FORM:
 
 CAR_CORE = "OBJECT: Minimalist autonomous white sedan, blue stripe, matte plastic body."
 
-# 3. ЦВЕТА
 COLOR_RULES = """
 PALETTE:
 - DECK/BODY: Matte Snow White (#EAF0F9).
@@ -41,17 +39,15 @@ PALETTE:
 NO PINK. NO PURPLE. NO REALISM.
 """
 
-# 4. ФОН
 BACKGROUND = "BACKGROUND: ((Solid White Hex #FFFFFF)), ((Infinite Studio)). No walls, no floor texture."
 
-# 5. НЕГАТИВ (Запреты)
 NEGATIVE_PROMPT = "photo, realistic, photography, metal, chrome, reflection, dirt, shadow, seat, saddle, motorcycle, scooter, moped, pink, purple, complex background"
 
 # -----------------------------------------------------
 
-st.set_page_config(page_title="Brand Gen 9.0 (Strict)", layout="centered", page_icon="💎")
-st.title("💎 Генератор 9.0: Строгий Стиль")
-st.caption("Вернулись к сложным промптам. Кикборд вместо Самоката (чтобы без сиденья).")
+st.set_page_config(page_title="Brand Gen 10.0 (Hybrid)", layout="centered", page_icon="🛡️")
+st.title("🛡️ Генератор 10.0: Гибрид")
+st.caption("Стиль из Версии 9 + Надежность из Версии 8. Если Flux занят, сработает Turbo.")
 
 mode = st.radio("Тип объекта:", ["🛴 Самокат (Urent)", "🚗 Машина", "📦 Другое"], horizontal=True)
 
@@ -60,30 +56,46 @@ with st.form("prompt_form"):
     size_option = st.selectbox("Формат:", ["1:1", "16:9", "9:16"], index=0)
     submit = st.form_submit_button("✨ Сгенерировать")
 
-# Функция повторных попыток
-def generate_with_retry(url, retries=2):
-    for i in range(retries + 1):
-        try:
-            # Увеличенный тайм-аут для Flux (он медленный, но качественный)
-            response = requests.get(url, timeout=45)
-            if response.status_code == 200:
-                return response.content
-        except requests.exceptions.RequestException:
-            time.sleep(2) # Пауза перед повтором
-    return None
-
-if submit and user_input:
-    st.info("Генерация (Flux)...")
+# --- ФУНКЦИЯ "НЕПРОБИВАЕМОСТИ" ---
+def generate_safe(final_prompt, width, height, seed):
+    # 1. Сначала пробуем FLUX (Лучшее качество)
+    url_flux = f"https://pollinations.ai/p/{final_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
     
+    status_box = st.empty() # Место для сообщений
+    status_box.info("💎 Попытка 1: Стучимся к Flux (HD качество)...")
+    
+    try:
+        # Ждем 25 секунд. Если Flux жив, он ответит.
+        response = requests.get(url_flux, timeout=25)
+        if response.status_code == 200:
+            status_box.success("✅ Успех! Сработал Flux.")
+            return response.content, "Flux (High Quality)"
+    except:
+        pass # Если ошибка тайм-аута или соединения — не падаем, а идем дальше
+    
+    # 2. Если Flux молчит -> ПЕРЕКЛЮЧАЕМСЯ НА TURBO (Спасательный круг)
+    status_box.warning("⚠️ Flux перегружен. Включаю Turbo (Быстрый режим)...")
+    
+    # Turbo модель (она очень быстрая и почти никогда не падает)
+    url_turbo = f"https://pollinations.ai/p/{final_prompt}?width={width}&height={height}&model=turbo&nologo=true&enhance=false&seed={seed}"
+    
+    try:
+        response = requests.get(url_turbo, timeout=15)
+        if response.status_code == 200:
+            status_box.success("✅ Готово! Использован Turbo.")
+            return response.content, "Turbo (Backup Mode)"
+    except Exception as e:
+        status_box.error(f"❌ Полный отказ серверов. Ошибка: {e}")
+        return None, None
+
+# --- ОСНОВНАЯ ЛОГИКА ---
+if submit and user_input:
     try:
         # 1. Перевод
         translator = GoogleTranslator(source='auto', target='en')
         scene_en = translator.translate(user_input)
         
-        # 2. Сборка "Сэндвича"
-        # Стиль + Анатомия + Цвета + Сцена + Фон + Стиль(еще раз)
-        
-        # Очищаем сцену от вредных слов
+        # 2. Сборка промпта (Жесткий стиль)
         clean_scene = scene_en.replace("scooter", "").replace("bike", "").replace("moped", "")
         
         if "Самокат" in mode:
@@ -93,34 +105,26 @@ if submit and user_input:
         else:
             raw_prompt = f"{STYLE_PREFIX} OBJECT: {clean_scene}. {COLOR_RULES} {BACKGROUND} {STYLE_SUFFIX}"
             
-        # Добавляем негативный промпт
         final_prompt = urllib.parse.quote(f"{raw_prompt} --no {NEGATIVE_PROMPT}")
         
-        # 3. URL
+        # 3. Размеры и Seed
         width, height = (1024, 1024) if size_option == "1:1" else ((1280, 720) if "16:9" in size_option else (720, 1280))
         seed = random.randint(1, 99999)
-        
-        # Используем ТОЛЬКО Flux, так как Turbo не понимает стиль. 
-        # enhance=false - чтобы не добавлял отсебятину.
-        url = f"https://pollinations.ai/p/{final_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
-        
-        # 4. Запрос
-        image_bytes = generate_with_retry(url)
+
+        # 4. ЗАПУСК
+        image_bytes, model_used = generate_safe(final_prompt, width, height, seed)
 
         if image_bytes:
             image = Image.open(io.BytesIO(image_bytes))
-            st.success("Готово!")
-            st.image(image, caption="Результат (Flux Strict)", use_container_width=True)
+            st.image(image, caption=f"Результат ({model_used})", use_container_width=True)
             
-            with st.expander("Посмотреть полный запрос"):
+            with st.expander("Посмотреть промпт"):
                 st.write(raw_prompt)
-                
-            st.download_button("Скачать PNG", image_bytes, "brand_v9.png", "image/png")
-        else:
-            st.error("Ошибка сервера: Flux перегружен. Попробуйте через минуту.")
+
+            st.download_button("Скачать PNG", image_bytes, "brand_safe.png", "image/png")
 
     except Exception as e:
-        st.error(f"Ошибка: {e}")
+        st.error(f"Ошибка приложения: {e}")
 
 elif submit:
     st.warning("Введите описание.")
