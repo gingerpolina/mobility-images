@@ -6,7 +6,6 @@ import io
 import os
 
 # --- НАСТРОЙКИ СТИЛЯ (ВАШ БРЕНДБУК) ---
-# Я сохранил твой промпт в точности
 STYLE_PREFIX = """
 GENERATE AN IMAGE FOLLOWING THESE STRICT BRAND GUIDELINES:
 1. VISUAL STYLE: 3D minimalist illustration, Claymorphism style. Matte plastic, smooth rounded shapes, soft studio lighting. NO noise, NO grunge.
@@ -29,7 +28,7 @@ except:
     st.error("⚠️ Не найден API ключ! Добавь GOOGLE_API_KEY в секреты Streamlit.")
     st.stop()
 
-# Инициализация клиента (новая библиотека)
+# Инициализация клиента
 client = genai.Client(api_key=api_key)
 
 with st.form("prompt_form"):
@@ -38,15 +37,14 @@ with st.form("prompt_form"):
     submit = st.form_submit_button("🎨 Сгенерировать")
 
 if submit and user_prompt:
-    st.info("Генерирую изображение через Google GenAI SDK...")
+    st.info("Генерирую изображение (попытка моделью 002)...")
     
-    # Склеиваем стиль и запрос пользователя
     full_prompt = STYLE_PREFIX + " " + user_prompt
     
     try:
-        # ЗАПРОС ЧЕРЕЗ НОВУЮ БИБЛИОТЕКУ
+        # ЗАПРОС (ИСПОЛЬЗУЕМ ВЕРСИЮ МОДЕЛИ 002)
         response = client.models.generate_images(
-            model='imagen-3.0-generate-001',
+            model='imagen-3.0-generate-002', # <--- ИЗМЕНИЛИ ЗДЕСЬ
             prompt=full_prompt,
             config=types.GenerateImagesConfig(
                 number_of_images=1,
@@ -55,14 +53,13 @@ if submit and user_prompt:
             )
         )
         
-        # Проверяем, пришла ли картинка
         if response.generated_images:
             image = response.generated_images[0].image
             
             st.success("Готово!")
             st.image(image, caption="Результат", use_container_width=True)
             
-            # Подготовка для скачивания (конвертируем обратно в байты)
+            # Подготовка для скачивания
             buf = io.BytesIO()
             image.save(buf, format="PNG")
             byte_im = buf.getvalue()
@@ -74,11 +71,11 @@ if submit and user_prompt:
                 mime="image/png"
             )
         else:
-            st.error("Сервер не вернул изображение (пустой ответ).")
+            st.error("Сервер не вернул изображение.")
             
     except Exception as e:
         st.error(f"Произошла ошибка: {e}")
-        st.caption("Совет: Если ошибка '404', попробуйте поменять модель на 'imagen-3.0-generate-002' в коде.")
+        st.warning("Если снова ошибка 404: Убедитесь, что у вашего аккаунта Google AI Studio включен доступ к Imagen 3 (иногда требуется Billing/Привязка карты в Google Cloud).")
 
 elif submit:
     st.warning("Пожалуйста, введите описание.")
