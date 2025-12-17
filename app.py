@@ -7,66 +7,28 @@ from deep_translator import GoogleTranslator
 import random
 import time
 
-# --- НАСТРОЙКИ 7.0 (PREMIUM MINIMALISM) ---
+# --- НАСТРОЙКИ СТИЛЯ (COMPACT VERSION) ---
+# Я немного сократил текст промптов, чтобы URL не был слишком длинным (это тоже причина ошибок)
 
-# 1. СТИЛЬ: "Дорогой" матовый материал, но без лишнего реализма.
-# Soft-Touch = приятный на ощупь матовый пластик.
-STYLE_HEADER = """
-((3D Minimalist Render)), ((Product Visualization)).
-MATERIAL: ((Matte Soft-Touch Plastic)), ((Ceramic finish)), ((Clean)).
-STYLE: Apple-like minimalism, smooth geometry, chamfered edges.
-LIGHTING: Softbox studio lighting, even illumination, no harsh shadows.
-"""
+STYLE_HEADER = "((3D Minimalist Product Render)), ((Matte Soft-Touch Plastic)), ((Unibody Design)), ((Clean Geometry))."
+BACKGROUND_RULE = "BACKGROUND: ((PURE WHITE HEX #FFFFFF)), ((Infinite Studio)). No shadows."
+COLOR_RULES = "COLORS: Matte Snow White Body, Deep Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601)."
 
-# 2. ФОН: Бесконечный белый.
-BACKGROUND_RULE = """
-BACKGROUND: ((PURE WHITE HEX #FFFFFF)), ((Infinite Studio Background)). 
-No floor texture, no horizon line.
-"""
-
-# 3. ЦВЕТА: Четкое разделение зон (Color Blocking).
-COLOR_RULES = """
-COLOR PALETTE:
-- CHASSIS (Deck & Frame): Matte Snow White.
-- STEM (Pole): Deep Royal Blue (#0668D7).
-- ACCENTS (Wires/Reflectors): Vibrant Safety Orange (#FF9601).
-- TIRES: Matte Dark Grey.
-"""
-
-# 4. АНАТОМИЯ САМОКАТА (ИНЖЕНЕРНАЯ ТОЧНОСТЬ)
-# Dashboard убрали. Добавили "Tubular" и "Unibody", чтобы собрать форму.
 SCOOTER_CORE = """
-OBJECT: A modern Electric Kick Scooter.
-GEOMETRY:
-- Thick tubular vertical stem (steering column).
-- Wide flat unibody deck (footboard).
-- Minimalist rear fender.
-- Integrated cable routing.
-- ((NO SEAT)), ((NO SADDLE)). It is strictly for standing.
+OBJECT: Modern Electric Kick Scooter.
+GEOMETRY: Thick tubular stem, wide flat deck, integrated minimalist fender.
+((NO SEAT)), ((NO SADDLE)). Standing only.
 """
 
-# 5. АНАТОМИЯ МАШИНЫ
-CAR_CORE = "OBJECT: A modern autonomous white sedan car with blue branding strip. Smooth minimalist shape."
+CAR_CORE = "OBJECT: Modern autonomous white sedan car, blue branding strip. Minimalist unibody shape."
 
-# 6. НЕГАТИВНЫЙ ПРОМПТ
-NEGATIVE_PROMPT = """
-dashboard, screen, display, complex details, wires,
-shiny metal, chrome, reflection,
-seat, saddle, bicycle, moped, motorcycle,
-toy, low poly, pixelated, 
-pink, purple, red, green,
-shadow, dirt, grunge
-"""
+NEGATIVE_PROMPT = "dashboard, screen, wires, seat, saddle, motorcycle, moped, realistic, dirt, grunge, shadow, pink, purple, red, green"
 
 # -----------------------------------------------------
 
-st.set_page_config(page_title="Brand Gen 7.0 (Clean Shape)", layout="centered", page_icon="✨")
-st.title("✨ Генератор 7.0: Чистая Форма")
-st.caption("Фокус на правильной геометрии (Tubular/Unibody) и материалах Soft-Touch.")
-
-with st.sidebar:
-    use_turbo = st.checkbox("Turbo-режим", value=False)
-    model = "turbo" if use_turbo else "flux"
+st.set_page_config(page_title="Brand Gen 8.0 (Auto-Switch)", layout="centered", page_icon="⚡")
+st.title("⚡ Генератор 8.0: Авто-переключение")
+st.caption("Если Flux (высокое качество) перегружен, я сам переключусь на Turbo.")
 
 mode = st.radio("Тип объекта:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"], horizontal=True)
 
@@ -75,59 +37,69 @@ with st.form("prompt_form"):
     size_option = st.selectbox("Формат:", ["1:1", "16:9", "9:16"], index=0)
     submit = st.form_submit_button("✨ Сгенерировать")
 
-if submit and user_input:
-    st.info("Рендер формы...")
+# --- ФУНКЦИЯ ГЕНЕРАЦИИ С ЗАЩИТОЙ ---
+def generate_safe(final_prompt, width, height, seed):
+    # Попытка 1: FLUX (Высокое качество)
+    url_flux = f"https://pollinations.ai/p/{final_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
     
+    status_text = st.empty() # Место для сообщений
+    status_text.info("🔄 Попытка 1: Стучимся к Flux (HD качество)...")
+    
+    try:
+        response = requests.get(url_flux, timeout=20) # Ждем 20 сек
+        if response.status_code == 200:
+            status_text.success("✅ Успех! Сработал Flux.")
+            return response.content, "Flux (High Quality)"
+    except:
+        pass # Если ошибка, молча идем дальше
+    
+    # Попытка 2: TURBO (Если Flux упал)
+    status_text.warning("⚠️ Flux перегружен. Переключаюсь на Turbo (Скорость)...")
+    url_turbo = f"https://pollinations.ai/p/{final_prompt}?width={width}&height={height}&model=turbo&nologo=true&enhance=false&seed={seed}"
+    
+    try:
+        response = requests.get(url_turbo, timeout=15)
+        if response.status_code == 200:
+            status_text.success("✅ Готово! Использован Turbo.")
+            return response.content, "Turbo (Fast Mode)"
+    except Exception as e:
+        status_text.error(f"❌ Все серверы заняты. Ошибка: {e}")
+        return None, None
+
+# --- ОСНОВНАЯ ЛОГИКА ---
+if submit and user_input:
     try:
         # 1. Перевод
         translator = GoogleTranslator(source='auto', target='en')
         scene_en = translator.translate(user_input)
-        
-        # 2. ТРАНСФОРМАЦИЯ СЦЕНЫ
-        # Добавляем "Minimalist composition", чтобы фон не перегружался
         stylized_scene = f"minimalist composition, {scene_en}, clean forms"
         
-        # 3. СБОРКА ПРОМПТА
+        # 2. Сборка (сжатая)
+        encoded_scene = urllib.parse.quote(stylized_scene)
+        
         if "Самокат" in mode:
-            safe_scene = stylized_scene.replace("scooter", "").replace("bike", "")
-            final_prompt = f"{STYLE_HEADER} {SCOOTER_CORE} {COLOR_RULES} SCENE: {safe_scene}. {BACKGROUND_RULE}"
-            
+            raw_prompt = f"{STYLE_HEADER} {SCOOTER_CORE} {COLOR_RULES} SCENE: {stylized_scene}. {BACKGROUND_RULE}"
         elif "Машина" in mode:
-            final_prompt = f"{STYLE_HEADER} {CAR_CORE} {COLOR_RULES} SCENE: {stylized_scene}. {BACKGROUND_RULE}"
-            
+            raw_prompt = f"{STYLE_HEADER} {CAR_CORE} {COLOR_RULES} SCENE: {stylized_scene}. {BACKGROUND_RULE}"
         else:
-            final_prompt = f"{STYLE_HEADER} OBJECT: {stylized_scene}. {COLOR_RULES} {BACKGROUND_RULE}"
+            raw_prompt = f"{STYLE_HEADER} OBJECT: {stylized_scene}. {COLOR_RULES} {BACKGROUND_RULE}"
+            
+        final_prompt = urllib.parse.quote(f"{raw_prompt} --no {NEGATIVE_PROMPT}")
         
-        final_prompt += f" --no {NEGATIVE_PROMPT}"
-
-        # 4. Отправка
+        # Размеры
         width, height = (1024, 1024) if size_option == "1:1" else ((1280, 720) if "16:9" in size_option else (720, 1280))
-        encoded_prompt = urllib.parse.quote(final_prompt)
         seed = random.randint(1, 99999)
-        
-        url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model={model}&nologo=true&enhance=false&seed={seed}"
-        
-        # Повторные попытки при ошибке
-        response = requests.get(url, timeout=60)
-        if response.status_code != 200:
-            time.sleep(2)
-            response = requests.get(url, timeout=60)
 
-        if response.status_code == 200:
-            image_data = response.content
-            image = Image.open(io.BytesIO(image_data))
-            st.success("Готово!")
-            st.image(image, caption="Результат (Style: Soft-Touch)", use_container_width=True)
-            
-            with st.expander("Технический промпт"):
-                st.write(final_prompt)
-                
-            st.download_button("Скачать PNG", image_data, "brand_clean.png", "image/png")
-        else:
-            st.error("Ошибка сервера.")
+        # 3. Запуск умной генерации
+        image_bytes, model_used = generate_safe(final_prompt, width, height, seed)
+
+        if image_bytes:
+            image = Image.open(io.BytesIO(image_bytes))
+            st.image(image, caption=f"Результат ({model_used})", use_container_width=True)
+            st.download_button("Скачать PNG", image_bytes, "brand_gen.png", "image/png")
 
     except Exception as e:
-        st.error(f"Ошибка: {e}")
+        st.error(f"Ошибка приложения: {e}")
 
 elif submit:
     st.warning("Введите описание.")
