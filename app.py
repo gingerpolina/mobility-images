@@ -21,8 +21,8 @@ GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-st.set_page_config(page_title="Urent Gen v32 (Wide Angle)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v32: Широкий Угол")
+st.set_page_config(page_title="Urent Gen v33 (Standing Fix)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v33: Стоячий Пассажир")
 
 if 'last_image_bytes' not in st.session_state:
     st.session_state.last_image_bytes = None
@@ -30,38 +30,34 @@ if 'last_image_size' not in st.session_state:
     st.session_state.last_image_size = (0, 0)
 
 # ==========================================
-# 2. БРЕНДБУК (V31 Base + New Framing)
+# 2. БРЕНДБУК
 # ==========================================
 
-# СТИЛЬ (Из документации v31)
 STYLE_PREFIX = "((NO REALISM)). 3D minimalist product render. Style: Matte plastic textures, smooth rounded shapes, soft studio lighting, ambient occlusion. Aesthetic: Playful, modern, high fidelity, C4D style, Octane render."
-
 STYLE_SUFFIX = "High quality 3D render. 4k resolution."
 
-# КОМПОЗИЦИЯ (УСИЛЕННАЯ)
-# Мы просим камеру "отъехать" и оставить пустое место по краям.
+# КОМПОЗИЦИЯ (Усиленные отступы)
 COMPOSITION_RULES = (
-    "VIEW: Wide angle full body shot. ZOOM: Zoom out to fit the entire object with ample room. "
-    "FRAMING: Generous negative space borders (top, bottom, left, right). "
-    "The object must NOT touch the edges of the image. "
-    "Centered composition with 20% padding around the object. "
+    "VIEW: Long shot (Full Body). FRAMING: The entire object + rider must be strictly inside the image boundaries. "
+    "MARGINS: Add 20% empty background padding on all sides (Top, Bottom, Left, Right). "
+    "The subject is centered with ample breathing room. Do not crop the wheels or handle. "
+    "Ensure the background is homogeneous and extends to the edges."
 )
 
-# АНАТОМИЯ (UNIBODY из v31)
+# АНАТОМИЯ
 SCOOTER_CORE = (
     "MAIN OBJECT: Modern Electric Kick Scooter. "
     "DESIGN RULES: 1. A tall vertical Blue tube (Steering stem) with T-handlebars. "
     "2. A wide, seamless, low-profile unibody standing deck (Snow White). "
-    "3. Small minimalist wheels are partially enclosed within the deck housing. "
+    "3. Small minimalist wheels partially enclosed. "
     "SHAPE: Sleek, integrated, geometric L-shape. ((NO SEAT))."
 )
 
 CAR_CORE = "MAIN OBJECT: Cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
-
-# ЦВЕТА
 COLOR_RULES = "COLORS: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
 
-NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, moped, motorcycle, bulky battery, wires, cut off, cropped, out of frame, extreme close up, text, watermark"
+# НЕГАТИВ: Запрещаем сидеть
+NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, box on deck, sitting, kneeling, riding sitting down, moped, motorcycle, cut off, cropped, text, watermark"
 
 # ==========================================
 # 3. ФУНКЦИИ
@@ -122,14 +118,32 @@ with tab1:
             env_en = translate_text(env_input) if env_input else ""
             pass_en = translate_text(passenger_input) if passenger_input else ""
 
-            if pass_en: passenger_prompt = "RIDER: A cute 3D plastic toy character of " + pass_en + " standing on the deck."
-            else: passenger_prompt = "No rider. Empty deck. ((NO SEAT))."
+            # ЛОГИКА ПАССАЖИРА (ЖЕСТКАЯ СТОЙКА)
+            if pass_en:
+                if "Самокат" in mode:
+                    # Если самокат - пассажир ОБЯЗАН стоять
+                    passenger_prompt = (
+                        "RIDER: A cute 3D plastic toy character of " + pass_en + 
+                        " is STANDING upright on two feet on the flat deck. " +
+                        "Hands holding the handlebars. POSE: Standing posture. NOT sitting."
+                    )
+                else:
+                    # Для машины или другого
+                    passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + "."
+            else:
+                passenger_prompt = "No rider. Empty flat deck. ((NO SEAT))."
 
-            if "Blue" in color_theme: bg_data = "BACKGROUND: Solid Royal Blue #0668D7. ENVIRONMENT MATERIAL: Matte Royal Blue Plastic."
-            elif "Orange" in color_theme: bg_data = "BACKGROUND: Solid Neon Orange #FF9601. ENVIRONMENT MATERIAL: Matte Orange Plastic."
-            elif "White" in color_theme: bg_data = "BACKGROUND: Solid Flat White. ENVIRONMENT MATERIAL: Matte White Plastic."
-            elif "Black" in color_theme: bg_data = "BACKGROUND: Solid Matte Black. ENVIRONMENT MATERIAL: Dark Grey Plastic."
-            else: bg_data = "BACKGROUND: Studio Lighting. ENVIRONMENT MATERIAL: Colorful matte plastic."
+            # ЛОГИКА ФОНА (ЦИКЛОРАМА)
+            if "Blue" in color_theme: 
+                bg_data = "BACKGROUND: Seamless Royal Blue Studio Cyclorama #0668D7. Uniform background. ENV MATERIAL: Matte Blue Plastic."
+            elif "Orange" in color_theme: 
+                bg_data = "BACKGROUND: Seamless Neon Orange Studio Cyclorama #FF9601. Uniform background. ENV MATERIAL: Matte Orange Plastic."
+            elif "White" in color_theme: 
+                bg_data = "BACKGROUND: Seamless Flat White Studio Cyclorama. Uniform background. ENV MATERIAL: Matte White Plastic."
+            elif "Black" in color_theme: 
+                bg_data = "BACKGROUND: Seamless Matte Black Studio Cyclorama. Uniform background. ENV MATERIAL: Dark Grey Plastic."
+            else: 
+                bg_data = "BACKGROUND: Soft Studio Lighting. ENV MATERIAL: Colorful matte plastic."
 
             full_env = ("SCENE: " + env_en + ". " + bg_data) if env_en else ("SCENE: Isolated studio shot. " + bg_data)
             
@@ -137,7 +151,6 @@ with tab1:
             elif "Машина" in mode: core = CAR_CORE
             else: core = "MAIN OBJECT: " + env_en
 
-            # Собираем строку через плюс
             raw_prompt = STYLE_PREFIX + " " + COMPOSITION_RULES + " " + core + " " + passenger_prompt + " " + full_env + " " + COLOR_RULES + " " + STYLE_SUFFIX
             final_prompt = raw_prompt + " --no " + NEGATIVE_PROMPT
             
@@ -173,14 +186,12 @@ with tab2:
         for i, filename in enumerate(files):
             fp = os.path.join(GALLERY_DIR, filename)
             tp = fp + ".txt"
-            
             with cols[i % 2]:
                 with st.container(border=True):
                     try: img = Image.open(fp); st.image(img)
                     except: continue
                     c1, c2, c3 = st.columns([1, 1.5, 0.5])
                     with open(fp, "rb") as f: c1.download_button("⬇️", f, filename)
-                    
                     rw, rh = img.size
                     if rw < 2000:
                         if c2.button("✨ 2048px", key=f"u{i}"):
@@ -194,7 +205,7 @@ with tab2:
                                     final = smart_resize(hq, 2048, 2048)
                                     n_path = os.path.join(GALLERY_DIR, filename.replace(f"_{rw}_{rh}", "_2048_2048"))
                                     with open(n_path, "wb") as f: f.write(final)
-                                    with open(n_path + ".txt", "w", encoding="utf-8") as f: f.write(p) # Исправлен баг с потерей промпта при апскейле
+                                    with open(n_path + ".txt", "w", encoding="utf-8") as f: f.write(p)
                                     os.remove(fp); os.remove(tp)
                                     st.rerun()
                                 else: st.error("Сервер занят")
