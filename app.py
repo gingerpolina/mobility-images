@@ -15,8 +15,8 @@ GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-st.set_page_config(page_title="Gen 15.0 (Stable)", layout="wide", page_icon="✨")
-st.title("✨ Генератор 15.0: Стабильная версия")
+st.set_page_config(page_title="Gen 15.1 (Final)", layout="wide", page_icon="✨")
+st.title("✨ Генератор 15.1: Исправленный")
 
 # --- 2. КОНСТАНТЫ СТИЛЯ ---
 STYLE_PREFIX = """
@@ -87,32 +87,4 @@ with tab1:
             
             # 2. Сборка промпта
             if "Самокат" in mode:
-                raw_prompt = f"{STYLE_PREFIX} {OBJECT_CORE} {COLOR_RULES} SCENE: {clean_scene}. {BACKGROUND} {STYLE_SUFFIX}"
-            elif "Машина" in mode:
-                raw_prompt = f"{STYLE_PREFIX} {CAR_CORE} {COLOR_RULES} SCENE: {clean_scene}. {BACKGROUND} {STYLE_SUFFIX}"
-            else:
-                raw_prompt = f"{STYLE_PREFIX} OBJECT: {clean_scene}. {COLOR_RULES} {BACKGROUND} {STYLE_SUFFIX}"
-                
-            final_prompt = urllib.parse.quote(f"{raw_prompt} --no {NEGATIVE_PROMPT}")
-            
-            # 3. Размеры
-            base_s = 1024
-            if "16:9" in aspect: w, h = int(base_s*1.2), int(base_s*0.6)
-            elif "9:16" in aspect: w, h = int(base_s*0.6), int(base_s*1.2)
-            else: w, h = base_s, base_s
-            
-            seed = random.randint(1, 999999)
-
-            # 4. Запуск генерации
-            with st.spinner("Рисую..."):
-                img_bytes = generate_image(final_prompt, w, h, seed)
-
-            if img_bytes == "BUSY":
-                st.warning("Сервер перегружен (429). Попробуйте через 5 секунд.")
-            elif img_bytes:
-                # Показываем
-                image = Image.open(io.BytesIO(img_bytes))
-                st.image(image, caption=f"Результат ({w}x{h})", use_container_width=True)
-                
-                # Сохраняем файл + промпт
-                timestamp = datetime.datetime.now().strftime("%H%M%
+                raw_prompt = f"{STYLE_PREFIX} {OBJECT_CORE} {COLOR_RULES} SCENE: {clean_scene}. {BACKGROUND
