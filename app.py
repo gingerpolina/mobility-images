@@ -13,16 +13,15 @@ GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-# Нейтральное название
-st.set_page_config(page_title="Scooter Gen v41", layout="wide", page_icon="🛴")
-st.title("🛴 Scooter Gen v41: Синтаксис и Пропорции")
+st.set_page_config(page_title="Scooter Gen v39.1", layout="wide", page_icon="🛴")
+st.title("🛴 Scooter Gen v39.1: Universal Toy (Safe)")
 
 if 'last_image_bytes' not in st.session_state:
     st.session_state.last_image_bytes = None
 if 'last_image_size' not in st.session_state:
     st.session_state.last_image_size = (0, 0)
 
-# Безопасный импорт переводчика
+# Безопасный импорт
 try:
     from deep_translator import GoogleTranslator
     HAS_TRANSLATOR = True
@@ -38,12 +37,11 @@ COMPOSITION_RULES = "VIEW: Long shot (Full Body). COMPOSITION: The Main Object, 
 
 # UNIBODY ANATOMY
 SCOOTER_CORE = "MAIN OBJECT: Modern Electric Kick Scooter. DESIGN: 1. Tall vertical Blue tube (Steering stem) with T-handlebars. 2. Wide, seamless, low-profile unibody standing deck (Snow White). 3. Small minimalist wheels partially enclosed. SHAPE: Sleek, integrated, geometric L-shape. ((NO SEAT))."
-
 CAR_CORE = "MAIN OBJECT: Cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 
 COLOR_RULES = "COLORS: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
 
-NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, levitation, hovering feet, jumping, tiny character"
+NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, levitation, hovering feet, jumping"
 
 # --- FUNCTIONS ---
 def make_request_with_retry(url, max_retries=3):
@@ -61,7 +59,6 @@ def make_request_with_retry(url, max_retries=3):
     return None
 
 def generate_image(prompt, width, height, seed, model='flux'):
-    # Кодируем промпт для URL
     encoded_prompt = urllib.parse.quote(prompt)
     url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model={model}&nologo=true&enhance=true&seed={seed}"
     return make_request_with_retry(url)
@@ -79,46 +76,4 @@ def smart_resize(image_bytes, target_w, target_h):
         return image_bytes
 
 def translate_text(text):
-    if not text or not HAS_TRANSLATOR:
-        return text
-    try:
-        translator = GoogleTranslator(source='auto', target='en')
-        return translator.translate(text)
-    except:
-        return text
-
-# --- UI LOGIC ---
-tab1, tab2 = st.tabs(["🎨 Генератор", "📂 Галерея"])
-
-with tab1:
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        with st.form("gen_form"):
-            mode = st.radio("Объект:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"])
-            passenger_input = st.text_input("👤 Пассажир:", placeholder="Например: Кот...")
-            st.divider()
-            
-            # Нейтральные названия цветов
-            color_theme = st.selectbox("🎨 Окружение:", [
-                "🟦 Royal Blue", 
-                "⬜ Flat White", 
-                "🟧 Neon Orange", 
-                "🎨 Natural", 
-                "⬛ Matte Black"
-            ])
-            
-            env_input = st.text_area("🌳 Детали окружения:", height=80)
-            aspect = st.selectbox("Формат:", ["1:1", "16:9", "9:16"])
-            submitted = st.form_submit_button("🚀 Сгенерировать", type="primary")
-
-    with col2:
-        if submitted:
-            env_en = translate_text(env_input) if env_input else ""
-            pass_en = translate_text(passenger_input) if passenger_input else ""
-
-            # --- СБОРКА ПРОМПТА ПАССАЖИРА (Безопасная конкатенация) ---
-            if pass_en:
-                if "Самокат" in mode:
-                    # Используем обычное сложение строк, чтобы избежать SyntaxError
-                    p
+    if
