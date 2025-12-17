@@ -1,87 +1,80 @@
 import streamlit as st
-from google import genai
-from google.genai import types
+import requests
 from PIL import Image
 import io
-import os
+import urllib.parse
 
 # --- НАСТРОЙКИ СТИЛЯ (ВАШ БРЕНДБУК) ---
+# Я немного адаптировал промпт под модель Flux/SDXL, чтобы она лучше понимала стиль
 STYLE_PREFIX = """
-GENERATE AN IMAGE FOLLOWING THESE STRICT BRAND GUIDELINES:
-1. VISUAL STYLE: 3D minimalist illustration, Claymorphism style. Matte plastic, smooth rounded shapes, soft studio lighting. NO noise, NO grunge.
-2. COLOR PALETTE: Blue (#0668D7, #08305E), Soft Whites (#EAF0F9), Accent Orange (#FF9601).
-3. BACKGROUND: STRICTLY FLAT and SOLID single color (White, Blue, or Light Grey). NO shadows/gradients on background.
-4. SUBJECTS: Minimalist 3D characters, stylized.
-5. SCOOTERS: Must have battery in floor deck. NO seats, NO mirrors, NO logos.
-6. NEGATIVE PROMPT: Text, letters, watermarks, realistic photos, blurry, complex background.
-USER REQUEST:
+(3D minimalist illustration), (claymorphism style), matte plastic texture, smooth rounded shapes, soft studio lighting, 
+clean composition, rendered in Blender, 4k, high resolution.
+COLORS: Blue (#0668D7), White, Orange Accent.
+BACKGROUND: simple solid color background, flat, no shadows.
+OBJECT:
 """
+
+NEGATIVE_PROMPT = "photorealistic, noisy, grunge, text, watermark, low quality, pixelated, complex background, shadow on background"
 # -----------------------------------------------------
 
-st.set_page_config(page_title="3D Brand Generator", layout="centered", page_icon="🛴")
-st.title("🛴 Корпоративный 3D Генератор (Alpha)")
-
-# Получаем ключ из секретов
-try:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-except:
-    st.error("⚠️ Не найден API ключ! Добавь GOOGLE_API_KEY в секреты Streamlit.")
-    st.stop()
-
-# --- ВАЖНОЕ ИСПРАВЛЕНИЕ ---
-# Мы принудительно переключаем клиент на версию 'v1alpha'.
-# Именно там сейчас находится модель Gemini 2.0.
-client = genai.Client(
-    api_key=api_key,
-    http_options={'api_version': 'v1alpha'}
-)
+st.set_page_config(page_title="Free 3D Generator", layout="centered", page_icon="🛴")
+st.title("🛴 Бесплатный 3D Генератор (Flux)")
+st.caption("Работает на базе Pollinations.ai (No API Key needed)")
 
 with st.form("prompt_form"):
-    user_prompt = st.text_area("Что изобразить?", height=100)
-    aspect_ratio = st.selectbox("Формат:", ["1:1", "16:9", "9:16", "3:4", "4:3"], index=0)
-    submit = st.form_submit_button("🎨 Сгенерировать")
+    user_prompt = st.text_area("Что изобразить?", value="Электросамокат стоит под новогодней елкой", height=100)
+    
+    # Размеры для Pollinations
+    size_option = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"], index=0)
+    
+    if size_option == "1:1 (Квадрат)":
+        width, height = 1024, 1024
+    elif size_option == "16:9 (Широкий)":
+        width, height = 1280, 720
+    else:
+        width, height = 720, 1280
+        
+    submit = st.form_submit_button("🎨 Сгенерировать бесплатно")
 
 if submit and user_prompt:
-    # Бесплатная экспериментальная модель
-    model_name = 'gemini-2.0-flash-exp'
-    st.info(f"Генерирую через {model_name} (Alpha API)...")
+    st.info("Генерирую... (обычно занимает 5-10 секунд)")
     
-    full_prompt = STYLE_PREFIX + " " + user_prompt
+    # 1. Собираем полный промпт
+    full_prompt = f"{STYLE_PREFIX} {user_prompt}. {NEGATIVE_PROMPT}"
+    
+    # 2. Кодируем промпт для URL (превращаем пробелы в %20 и т.д.)
+    encoded_prompt = urllib.parse.quote(full_prompt)
+    
+    # 3. Формируем ссылку на бесплатный API
+    # seed=42 (или случайный) можно добавлять для вариативности
+    # model=flux - используем одну из лучших моделей сейчас
+    url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=true"
     
     try:
-        # Запрос к модели
-        response = client.models.generate_images(
-            model=model_name,
-            prompt=full_prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio=aspect_ratio
-            )
-        )
+        # 4. Делаем запрос
+        response = requests.get(url, timeout=30)
         
-        if response.generated_images:
-            image = response.generated_images[0].image
+        if response.status_code == 200:
+            # Читаем картинку из ответа
+            image_data = response.content
+            image = Image.open(io.BytesIO(image_data))
             
             st.success("Готово!")
-            st.image(image, caption="Результат", use_container_width=True)
+            st.image(image, caption="Результат (Model: Flux)", use_container_width=True)
             
-            # Подготовка для скачивания
-            buf = io.BytesIO()
-            image.save(buf, format="PNG")
-            byte_im = buf.getvalue()
-            
+            # Кнопка скачивания
             st.download_button(
                 label="⬇️ Скачать PNG",
-                data=byte_im,
-                file_name="brand_3d_image.png",
+                data=image_data,
+                file_name="scooter_3d.png",
                 mime="image/png"
             )
         else:
-            st.error("Сервер не вернул изображение (пустой ответ).")
+            st.error(f"Ошибка сервера: {response.status_code}")
+            st.write(response.text)
             
     except Exception as e:
-        st.error(f"Произошла ошибка: {e}")
-        st.caption("Если вы видите ошибку '404' или 'Quota', значит Google временно ограничил доступ к генерации картинок для ключей без привязанной карты (даже для экспериментальных моделей).")
+        st.error(f"Что-то пошло не так: {e}")
 
 elif submit:
-    st.warning("Пожалуйста, введите описание.")
+    st.warning("Напишите описание.")
