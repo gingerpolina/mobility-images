@@ -6,52 +6,64 @@ import urllib.parse
 from deep_translator import GoogleTranslator
 import random
 
-# --- БИБЛИОТЕКА ПРОМПТОВ (БРЕНДБУК) ---
+# --- БРЕНДБУК: ЦВЕТА И СТИЛЬ ---
 
-# 1. ОБЩИЙ СТИЛЬ (Работает всегда)
-BASE_STYLE = """
-STYLE: 3D cute minimalist render, claymorphism, matte plastic texture, smooth rounded shapes, bright studio lighting. High resolution.
-COLORS: The object is primarily MATTE WHITE (#EAF0F9). Major details are BLUE (#0668D7). Tiny accents are ORANGE (#FF9601).
-BACKGROUND: Isolated on a SOLID WHITE background. NO gradients. NO shadows on wall.
+# 1. ГЛОБАЛЬНЫЙ СТИЛЬ (ПРИМЕНЯЕТСЯ КО ВСЕМУ ИЗОБРАЖЕНИЮ)
+# Мы говорим: "Весь мир сделан из мягкого пластика". Это исправит реалистичную елку.
+WORLD_STYLE = """
+RENDERING STYLE: 3D Claymorphism. Everything looks like soft matte plastic or Play-Doh. 
+TEXTURES: Smooth, clean, no noise. Toy-like proportions.
+LIGHTING: Bright studio lighting, soft shadows.
 """
 
-# 2. НАСТРОЙКИ ДЛЯ САМОКАТА (Убиваем сиденья)
-# Трюк: используем слово Kickboard вместо Scooter, чтобы не было мопедов.
-SCOOTER_PROMPT = """
-OBJECT: A modern electric KICKBOARD (stand-up kick scooter).
-ANATOMY: 
-1. A flat horizontal deck (floorboard) for standing.
-2. A vertical stem connected to the front of the deck.
-3. A simple T-bar handlebar.
-4. Two small wheels.
-STRICT RULES: NO SEAT. NO SADDLE. NO CHAIR. It is for standing only.
+# 2. ЦВЕТОВАЯ ПАЛИТРА (ПЕРЕВОД HEX В СЛОВА)
+# Нейросети плохо понимают HEX (#0668D7), им нужны названия.
+# #0668D7 -> Royal Blue / Corporate Blue
+# #EAF0F9 -> Snow White / Soft Grey
+# #FF9601 -> Vibrant Safety Orange
+COLOR_RULES = """
+STRICT COLOR PALETTE:
+1. MAIN BODY: Snow White (Matte Plastic).
+2. BRANDING ELEMENTS: Deep Royal Blue.
+3. ACCENTS (Wires/Brakes): Vibrant Orange.
+4. TIRES: Black.
+FORBIDDEN COLORS: NO PINK. NO PURPLE. NO MAGENTA. NO PASTEL COLORS.
 """
 
-# 3. НАСТРОЙКИ ДЛЯ КАРШЕРИНГА
-CAR_PROMPT = """
-OBJECT: A modern carsharing vehicle (compact sedan).
-APPEARANCE: The car body is MATTE WHITE. There is a BLUE branding strip on the side door. 
-DETAILS: Smooth minimalist wheels, black windows. Friendly 3D shape.
+# 3. АНАТОМИЯ САМОКАТА (БЕЗ СИДЕНЬЯ)
+SCOOTER_ANATOMY = """
+OBJECT: A modern electric KICKBOARD (Standing scooter).
+SHAPE:
+- L-shaped silhouette.
+- Vertical steering stem.
+- Flat deck for standing.
+- NO SEAT. NO SADDLE.
 """
 
-# 4. НЕГАТИВНЫЙ ПРОМПТ (Мусор)
-NEGATIVE_PROMPT = "purple, pink, violet, lilac, red, green body, grunge, noise, pixelated, text, logo, watermark, realistic photo, dark, shadow, complex background"
+# 4. АНАТОМИЯ МАШИНЫ
+CAR_ANATOMY = """
+OBJECT: A compact carsharing sedan.
+LOOK: White body with Blue branding stripes on the side. 
+"""
+
+# 5. МУСОР (НЕГАТИВНЫЙ ПРОМПТ)
+NEGATIVE_PROMPT = "pink, rose, fuchsia, purple, lilac, red, realistic tree, realistic photo, organic texture, bark, fur, complex details, grunge, noise, seat, saddle, moped"
 
 # -----------------------------------------------------
 
-st.set_page_config(page_title="Brand Generator 2.0", layout="centered", page_icon="🎨")
-st.title("🎨 Корпоративный Генератор 2.0")
-st.caption("Выберите тип объекта, чтобы применить правильные правила формы.")
+st.set_page_config(page_title="Brand Generator 3.0", layout="centered", page_icon="🎨")
+st.title("🛴 Корпоративный Генератор 3.0")
+st.caption("Исправлены цвета (нет розовому!) и стиль окружения (елка теперь тоже 3D).")
 
-# --- ВЫБОР РЕЖИМА ---
+# Переключатель
 mode = st.radio(
-    "Что генерируем?",
-    ["🛴 Самокат (Urent)", "🚗 Машина (Каршеринг)", "📦 Другой объект (Общий стиль)"],
+    "Тип объекта:",
+    ["🛴 Самокат (Urent)", "🚗 Машина (Каршеринг)", "📦 Другое"],
     horizontal=True
 )
 
 with st.form("prompt_form"):
-    user_input = st.text_area("Детали сцены (например: стоит под елкой)", height=80)
+    user_input = st.text_area("Окружение (например: стоит под елкой)", value="стоит под минималистичной пластиковой елкой", height=80)
     
     size_option = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"], index=0)
     
@@ -65,36 +77,35 @@ with st.form("prompt_form"):
     submit = st.form_submit_button("✨ Сгенерировать")
 
 if submit and user_input:
-    st.info("Обработка запроса...")
+    st.info("Генерация с коррекцией цвета и стиля...")
     
     try:
-        # 1. Перевод ввода пользователя
+        # 1. Перевод
         translator = GoogleTranslator(source='auto', target='en')
-        scene_details = translator.translate(user_input)
+        scene_en = translator.translate(user_input)
         
-        # 2. Выбор правильного "каркаса"
+        # 2. Сборка промпта
+        # Мы "обволакиваем" ваш запрос стилем со всех сторон
+        
         if "Самокат" in mode:
-            # Если выбран самокат - берем жесткую анатомию самоката + сцену
-            # И удаляем слово "scooter" из ввода пользователя, чтобы не сбить модель
-            clean_scene = scene_details.replace("scooter", "").replace("bike", "")
-            final_prompt = f"{SCOOTER_PROMPT} {BASE_STYLE} SCENE: {clean_scene}. {NEGATIVE_PROMPT}"
+            # Убираем опасные слова из ввода пользователя
+            safe_scene = scene_en.replace("scooter", "").replace("bike", "")
+            # Промпт: Стиль Мира + Анатомия + Цвета + Сцена + "сделано из пластика"
+            final_prompt = f"{WORLD_STYLE} {SCOOTER_ANATOMY} {COLOR_RULES} SCENE: The scooter is {safe_scene}. Everything is made of matte plastic. {NEGATIVE_PROMPT}"
             
         elif "Машина" in mode:
-            # Если машина - берем каркас машины
-            final_prompt = f"{CAR_PROMPT} {BASE_STYLE} SCENE: {scene_details}. {NEGATIVE_PROMPT}"
+            final_prompt = f"{WORLD_STYLE} {CAR_ANATOMY} {COLOR_RULES} SCENE: The car is {scene_en}. Everything is made of matte plastic. {NEGATIVE_PROMPT}"
             
         else:
-            # Общий режим - просто стиль + то, что написал пользователь
-            final_prompt = f"{BASE_STYLE} OBJECT: {scene_details}. {NEGATIVE_PROMPT}"
+            final_prompt = f"{WORLD_STYLE} {COLOR_RULES} OBJECT: {scene_en}. {NEGATIVE_PROMPT}"
 
-        # 3. Кодирование URL
+        # 3. Отправка
         encoded_prompt = urllib.parse.quote(final_prompt)
         seed = random.randint(1, 10000)
         
-        # enhance=false важно, чтобы он не додумывал "красивые" детали типа фиолетового неба
+        # flux-pro или flux-realism иногда лучше слушают цвета
         url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
         
-        # 4. Запрос
         response = requests.get(url, timeout=45)
         
         if response.status_code == 200:
@@ -104,20 +115,20 @@ if submit and user_input:
             st.success("Готово!")
             st.image(image, caption=f"Результат ({mode})", use_container_width=True)
             
-            with st.expander("🛠 Проверить отправленный промпт"):
+            with st.expander("🔍 Что мы отправили нейросети (Debug)"):
                 st.write(final_prompt)
             
             st.download_button(
                 label="⬇️ Скачать PNG",
                 data=image_data,
-                file_name="brand_gen_2.png",
+                file_name="brand_v3.png",
                 mime="image/png"
             )
         else:
-            st.error("Ошибка сервера Pollinations.")
+            st.error("Ошибка сервера.")
             
     except Exception as e:
         st.error(f"Ошибка: {e}")
 
 elif submit:
-    st.warning("Введите описание.")
+    st.warning("Опишите сцену.")
