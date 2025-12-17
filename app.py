@@ -23,8 +23,8 @@ GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-st.set_page_config(page_title="Urent Gen v30 (Retry)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v30: Бронебойная")
+st.set_page_config(page_title="Urent Gen v31 (Unibody)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v31: Монолитный Дизайн")
 
 if 'last_image_bytes' not in st.session_state:
     st.session_state.last_image_bytes = None
@@ -43,15 +43,22 @@ STYLE_SUFFIX = "High quality 3D render. 4k resolution."
 # КОМПОЗИЦИЯ
 COMPOSITION_RULES = "COMPOSITION: Whole object strictly inside frame. Wide margins. Zoom out. Centered."
 
-# АНАТОМИЯ (Усиленная)
-SCOOTER_CORE = "MAIN OBJECT: Electric Kick Scooter. DESIGN RULES: 1. Tall vertical Blue tube (Steering stem). 2. Horizontal White flat deck (Standing platform). 3. T-shaped handlebar. 4. Two small wheels. SHAPE: Geometric L-shape. ((NO SEAT))."
+# АНАТОМИЯ (ОБНОВЛЕННАЯ - UNIBODY)
+# Мы описываем деку как единый литой элемент со встроенными колесами.
+SCOOTER_CORE = (
+    "MAIN OBJECT: Modern Electric Kick Scooter. "
+    "DESIGN RULES: 1. A tall vertical Blue tube (Steering stem) with T-handlebars. "
+    "2. A wide, seamless, low-profile unibody standing deck (Snow White). "
+    "3. Small minimalist wheels are partially enclosed within the deck housing. "
+    "SHAPE: Sleek, integrated, geometric L-shape. ((NO SEAT))."
+)
 
 CAR_CORE = "MAIN OBJECT: Cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 
 # ЦВЕТА
 COLOR_RULES = "COLORS: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
 
-NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, moped, motorcycle, cut off, cropped, text, watermark"
+NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, moped, motorcycle, bulky battery, wires, cut off, cropped, text, watermark"
 
 # ==========================================
 # 3. ФУНКЦИИ (С ЗАЩИТОЙ)
