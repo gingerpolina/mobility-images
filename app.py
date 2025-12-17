@@ -6,41 +6,52 @@ import urllib.parse
 from deep_translator import GoogleTranslator
 import random
 
-# --- 1. АНАТОМИЯ САМОКАТА (ЖЕСТКИЙ КАРКАС) ---
-# Мы описываем форму словами так, чтобы исключить мопед.
-# L-shaped = Г-образная форма. T-bar = Т-образный руль. Flat deck = Плоская дека.
-SCOOTER_ANATOMY = """
-OBJECT: A modern electric KICK SCOOTER (stand-up type).
-SHAPE RULES: The object has a strict L-shaped silhouette.
-1. Vertical stem (steering column) with a simple T-bar handlebar at the top.
-2. Flat horizontal floorboard (deck) at the bottom for standing.
-3. Two small wheels (one front, one back).
-4. NO SEAT. NO SADDLE. The user stands on the deck.
+# --- БИБЛИОТЕКА ПРОМПТОВ (БРЕНДБУК) ---
+
+# 1. ОБЩИЙ СТИЛЬ (Работает всегда)
+BASE_STYLE = """
+STYLE: 3D cute minimalist render, claymorphism, matte plastic texture, smooth rounded shapes, bright studio lighting. High resolution.
+COLORS: The object is primarily MATTE WHITE (#EAF0F9). Major details are BLUE (#0668D7). Tiny accents are ORANGE (#FF9601).
+BACKGROUND: Isolated on a SOLID WHITE background. NO gradients. NO shadows on wall.
 """
 
-# --- 2. СТИЛЬ И ЦВЕТА ---
-GLOBAL_STYLE = """
-VISUAL STYLE: 3D claymorphism render, matte plastic material, soft rounded edges, friendly studio lighting, minimalism.
-COLORS: Main body is White (#EAF0F9) and Blue (#0668D7). Wheels are Black. Small accents are Orange (#FF9601).
-BACKGROUND: Isolated on a solid flat Soft White background.
+# 2. НАСТРОЙКИ ДЛЯ САМОКАТА (Убиваем сиденья)
+# Трюк: используем слово Kickboard вместо Scooter, чтобы не было мопедов.
+SCOOTER_PROMPT = """
+OBJECT: A modern electric KICKBOARD (stand-up kick scooter).
+ANATOMY: 
+1. A flat horizontal deck (floorboard) for standing.
+2. A vertical stem connected to the front of the deck.
+3. A simple T-bar handlebar.
+4. Two small wheels.
+STRICT RULES: NO SEAT. NO SADDLE. NO CHAIR. It is for standing only.
 """
 
-# --- 3. НЕГАТИВНЫЙ ПРОМПТ (ЧТО ЗАПРЕЩЕНО) ---
-# Сюда добавил запрет на фиолетовый и усиленный запрет на сиденья
-NEGATIVE_PROMPT = """
-purple, violet, lilac, pink, 
-seat, saddle, chair, bench, 
-vespa, moped, scooter with seat, motorcycle, motorbike,
-combustion engine, exhaust pipe, 
-complex background, realistic photo, noise, grunge, text, watermark
+# 3. НАСТРОЙКИ ДЛЯ КАРШЕРИНГА
+CAR_PROMPT = """
+OBJECT: A modern carsharing vehicle (compact sedan).
+APPEARANCE: The car body is MATTE WHITE. There is a BLUE branding strip on the side door. 
+DETAILS: Smooth minimalist wheels, black windows. Friendly 3D shape.
 """
 
-st.set_page_config(page_title="Correct 3D Scooter", layout="centered", page_icon="🛴")
-st.title("🛴 Генератор: Правильная форма")
-st.caption("Форма самоката жестко описана геометрически (Г-образная рама).")
+# 4. НЕГАТИВНЫЙ ПРОМПТ (Мусор)
+NEGATIVE_PROMPT = "purple, pink, violet, lilac, red, green body, grunge, noise, pixelated, text, logo, watermark, realistic photo, dark, shadow, complex background"
+
+# -----------------------------------------------------
+
+st.set_page_config(page_title="Brand Generator 2.0", layout="centered", page_icon="🎨")
+st.title("🎨 Корпоративный Генератор 2.0")
+st.caption("Выберите тип объекта, чтобы применить правильные правила формы.")
+
+# --- ВЫБОР РЕЖИМА ---
+mode = st.radio(
+    "Что генерируем?",
+    ["🛴 Самокат (Urent)", "🚗 Машина (Каршеринг)", "📦 Другой объект (Общий стиль)"],
+    horizontal=True
+)
 
 with st.form("prompt_form"):
-    user_input = st.text_area("Детали сцены (где стоит самокат?):", value="стоит рядом с новогодней елкой", height=100)
+    user_input = st.text_area("Детали сцены (например: стоит под елкой)", height=80)
     
     size_option = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"], index=0)
     
@@ -54,30 +65,36 @@ with st.form("prompt_form"):
     submit = st.form_submit_button("✨ Сгенерировать")
 
 if submit and user_input:
-    st.info("Генерирую с учетом анатомии...")
+    st.info("Обработка запроса...")
     
     try:
-        # 1. Перевод запроса пользователя
+        # 1. Перевод ввода пользователя
         translator = GoogleTranslator(source='auto', target='en')
-        scene_description = translator.translate(user_input)
+        scene_details = translator.translate(user_input)
         
-        # 2. Логика замены слов (на всякий случай чистим ввод пользователя)
-        if "scooter" in scene_description.lower():
-            scene_description = scene_description.replace("scooter", "kick scooter")
+        # 2. Выбор правильного "каркаса"
+        if "Самокат" in mode:
+            # Если выбран самокат - берем жесткую анатомию самоката + сцену
+            # И удаляем слово "scooter" из ввода пользователя, чтобы не сбить модель
+            clean_scene = scene_details.replace("scooter", "").replace("bike", "")
+            final_prompt = f"{SCOOTER_PROMPT} {BASE_STYLE} SCENE: {clean_scene}. {NEGATIVE_PROMPT}"
+            
+        elif "Машина" in mode:
+            # Если машина - берем каркас машины
+            final_prompt = f"{CAR_PROMPT} {BASE_STYLE} SCENE: {scene_details}. {NEGATIVE_PROMPT}"
+            
+        else:
+            # Общий режим - просто стиль + то, что написал пользователь
+            final_prompt = f"{BASE_STYLE} OBJECT: {scene_details}. {NEGATIVE_PROMPT}"
 
-        # 3. СБОРКА ИТОГОВОГО ПРОМПТА
-        # Порядок важен: Сначала ЧТО (Анатомия), потом КАК (Стиль), потом ГДЕ (Сцена)
-        full_prompt = f"{SCOOTER_ANATOMY} {GLOBAL_STYLE} SCENE CONTEXT: {scene_description}. {NEGATIVE_PROMPT}"
+        # 3. Кодирование URL
+        encoded_prompt = urllib.parse.quote(final_prompt)
+        seed = random.randint(1, 10000)
         
-        # 4. Кодирование URL
-        encoded_prompt = urllib.parse.quote(full_prompt)
-        seed = random.randint(1, 100000)
-        
-        # enhance=true иногда добавляет лишние детали (и сиденья), поэтому ставим false
-        # но добавляем seed для разнообразия
+        # enhance=false важно, чтобы он не додумывал "красивые" детали типа фиолетового неба
         url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
         
-        # 5. Запрос
+        # 4. Запрос
         response = requests.get(url, timeout=45)
         
         if response.status_code == 200:
@@ -85,21 +102,19 @@ if submit and user_input:
             image = Image.open(io.BytesIO(image_data))
             
             st.success("Готово!")
+            st.image(image, caption=f"Результат ({mode})", use_container_width=True)
             
-            # Для отладки можно посмотреть, что мы реально отправили
-            with st.expander("Посмотреть текст промпта (Debug)"):
-                st.write(full_prompt)
-                
-            st.image(image, caption="Результат", use_container_width=True)
+            with st.expander("🛠 Проверить отправленный промпт"):
+                st.write(final_prompt)
             
             st.download_button(
                 label="⬇️ Скачать PNG",
                 data=image_data,
-                file_name="scooter_fixed.png",
+                file_name="brand_gen_2.png",
                 mime="image/png"
             )
         else:
-            st.error(f"Ошибка сервера: {response.status_code}")
+            st.error("Ошибка сервера Pollinations.")
             
     except Exception as e:
         st.error(f"Ошибка: {e}")
