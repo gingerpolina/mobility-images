@@ -19,7 +19,7 @@ USER REQUEST:
 # -----------------------------------------------------
 
 st.set_page_config(page_title="3D Brand Generator", layout="centered", page_icon="🛴")
-st.title("🛴 Корпоративный 3D Генератор")
+st.title("🛴 Корпоративный 3D Генератор (Alpha)")
 
 # Получаем ключ из секретов
 try:
@@ -28,8 +28,13 @@ except:
     st.error("⚠️ Не найден API ключ! Добавь GOOGLE_API_KEY в секреты Streamlit.")
     st.stop()
 
-# Инициализация клиента
-client = genai.Client(api_key=api_key)
+# --- ВАЖНОЕ ИСПРАВЛЕНИЕ ---
+# Мы принудительно переключаем клиент на версию 'v1alpha'.
+# Именно там сейчас находится модель Gemini 2.0.
+client = genai.Client(
+    api_key=api_key,
+    http_options={'api_version': 'v1alpha'}
+)
 
 with st.form("prompt_form"):
     user_prompt = st.text_area("Что изобразить?", height=100)
@@ -37,21 +42,20 @@ with st.form("prompt_form"):
     submit = st.form_submit_button("🎨 Сгенерировать")
 
 if submit and user_prompt:
-    # Используем модель, которая была найдена в вашем списке
+    # Бесплатная экспериментальная модель
     model_name = 'gemini-2.0-flash-exp'
-    st.info(f"Генерирую изображение моделью {model_name}...")
+    st.info(f"Генерирую через {model_name} (Alpha API)...")
     
     full_prompt = STYLE_PREFIX + " " + user_prompt
     
     try:
-        # ЗАПРОС К НОВОЙ МОДЕЛИ
+        # Запрос к модели
         response = client.models.generate_images(
             model=model_name,
             prompt=full_prompt,
             config=types.GenerateImagesConfig(
                 number_of_images=1,
-                aspect_ratio=aspect_ratio,
-                safety_filter_level="block_low_and_above"
+                aspect_ratio=aspect_ratio
             )
         )
         
@@ -73,10 +77,11 @@ if submit and user_prompt:
                 mime="image/png"
             )
         else:
-            st.error("Сервер не вернул изображение.")
+            st.error("Сервер не вернул изображение (пустой ответ).")
             
     except Exception as e:
         st.error(f"Произошла ошибка: {e}")
+        st.caption("Если вы видите ошибку '404' или 'Quota', значит Google временно ограничил доступ к генерации картинок для ключей без привязанной карты (даже для экспериментальных моделей).")
 
 elif submit:
     st.warning("Пожалуйста, введите описание.")
