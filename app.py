@@ -11,6 +11,7 @@ import datetime
 # --- CONFIG ---
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
+# Убрали упоминание бренда из заголовка
 st.set_page_config(page_title="Scooter Gen v40", layout="wide", page_icon="🛴")
 st.title("🛴 Scooter Gen v40: Пропорции и Поза")
 
@@ -73,59 +74,5 @@ with tab1:
             mode = st.radio("Объект:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"])
             passenger_input = st.text_input("👤 Пассажир:", placeholder="Например: Кот...")
             st.divider()
-            # Переименовали цвета в нейтральные
-            color_theme = st.selectbox("🎨 Окружение:", ["🟦 Royal Blue (Brand Style)", "⬜ Flat White", "🟧 Neon Orange (Brand Style)", "🎨 Natural", "⬛ Matte Black"])
-            env_input = st.text_area("🌳 Детали окружения:", height=80)
-            aspect = st.selectbox("Формат:", ["1:1", "16:9", "9:16"])
-            submitted = st.form_submit_button("🚀 Сгенерировать", type="primary")
-
-    with col2:
-        if submitted:
-            env_en = translate_text(env_input) if env_input else ""
-            pass_en = translate_text(passenger_input) if passenger_input else ""
-
-            # --- ИСПРАВЛЕННАЯ ЛОГИКА (V40 - SCALE & STANCE) ---
-            if pass_en:
-                if "Самокат" in mode:
-                    passenger_prompt = (
-                        "RIDER: A cute 3D plastic toy character of " + pass_en + ". " +
-                        # 1. ТЕЛО
-                        "BODY SHAPE: Universal simplified round vinyl toy shape. Chubby, anthropomorphic. " +
-                        "FACE: Minimalist. Eyes are simple small BLACK DOTS. " +
-                        # 2. МАСШТАБ (НОВОЕ)
-                        "SCALE: Correct scale relative to scooter. " +
-                        "The character's SHOULDERS MUST BE POSITIONED HIGHER than the scooter handlebars. " +
-                        "The character is NOT tiny. " +
-                        # 3. ПОЗА (НОВОЕ)
-                        "ARMS: Extended, HANDS FIRMLY GRIPPING THE T-HANDLEBARS. " +
-                        "LEGS: ONE LEG PLACED SLIGHTLY AHEAD OF THE OTHER for balance. " + 
-                        "FEET: SOLES OF FEET FLAT ON THE DECK SURFACE. ZERO GAP. " +
-                        "POSE: Weight bearing standing pose. Grounded."
-                    )
-                else:
-                    passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + ". Simple round vinyl toy style."
-            else:
-                passenger_prompt = "No rider. Empty flat deck. ((NO SEAT))."
-            # ----------------------------------------------------
-
-            if "Blue" in color_theme: bg_data = "BACKGROUND: Seamless Royal Blue Studio Cyclorama #0668D7. Uniform background. ENV MATERIAL: Matte Blue Plastic."
-            elif "Orange" in color_theme: bg_data = "BACKGROUND: Seamless Neon Orange Studio Cyclorama #FF9601. Uniform background. ENV MATERIAL: Matte Orange Plastic."
-            elif "White" in color_theme: bg_data = "BACKGROUND: Seamless Flat White Studio Cyclorama. Uniform background. ENV MATERIAL: Matte White Plastic."
-            elif "Black" in color_theme: bg_data = "BACKGROUND: Seamless Matte Black Studio Cyclorama. Uniform background. ENV MATERIAL: Dark Grey Plastic."
-            else: bg_data = "BACKGROUND: Soft Studio Lighting. ENV MATERIAL: Colorful matte plastic."
-
-            full_env = ("SCENE: " + env_en + ". " + bg_data) if env_en else ("SCENE: Isolated studio shot. " + bg_data)
-            
-            if "Самокат" in mode: core = SCOOTER_CORE
-            elif "Машина" in mode: core = CAR_CORE
-            else: core = "MAIN OBJECT: " + env_en
-
-            # Safe concatenation
-            raw_prompt = STYLE_PREFIX + " " + COMPOSITION_RULES + " " + core + " " + passenger_prompt + " " + full_env + " " + COLOR_RULES + " " + STYLE_SUFFIX
-            final_prompt = raw_prompt + " --no " + NEGATIVE_PROMPT
-            
-            base_s = 1024
-            if "16:9" in aspect: w, h = int(base_s*1.2), int(base_s*0.6)
-            elif "9:16" in aspect: w, h = int(base_s*0.6), int(base_s*1.2)
-            else: w, h = base_s, base_s
-            seed = random.randint(1, 999999
+            # Нейтральные названия цветов
+            color_theme = st.selectbox("🎨 Окружение
