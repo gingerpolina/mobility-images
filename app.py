@@ -11,15 +11,15 @@ import datetime
 import shutil
 
 # ==========================================
-# 1. ЗОЛОТАЯ АРХИТЕКТУРА (КОД НЕ МЕНЯЛСЯ)
+# 1. ЗОЛОТАЯ АРХИТЕКТУРА
 # ==========================================
 
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-st.set_page_config(page_title="Urent Gen v21 (Art Fix)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v21: Исправление Стиля")
+st.set_page_config(page_title="Urent Gen v22 (Pro Prompt)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v22: Инженерный Промпт")
 
 if 'last_image_bytes' not in st.session_state:
     st.session_state.last_image_bytes = None
@@ -27,35 +27,37 @@ if 'last_image_size' not in st.session_state:
     st.session_state.last_image_size = (0, 0)
 
 # ==========================================
-# 2. НОВЫЙ БРЕНДБУК (ПРАВКИ ПРОМПТА)
+# 2. НОВЫЙ БРЕНДБУК (ПЕРЕОСМЫСЛЕНИЕ)
 # ==========================================
 
-# СТИЛЬ: Добавил "Industrial Design" и "Soft Focus", чтобы убрать шум
+# СТИЛЬ: Принудительная изометрия и "пухлость" (Chunky)
+# Мы используем "Knolling" (стиль раскладки) и "C4D" (Cinema 4D), чтобы убрать фотореализм.
 STYLE_PREFIX = (
-    "((NO REALISM)). ((3D Industrial Product Render)), ((Claymorphism)), ((Cute Icon Style)). "
-    "LOOK: Smooth matte surfaces, rounded chamfers, minimalist geometry. "
-    "MATERIAL: High-quality soft plastic & matte metal. "
-    "LIGHTING: Studio softbox, clean white lighting, no hard shadows. "
+    "((Isometric 3D Render)), ((Claymorphism Style)), ((Cute Chunky Shapes)). "
+    "LOOK: Smooth matte plastic, rounded edges, soft clean surfaces. "
+    "VIBE: Minimalist product design, C4D render, Unreal Engine 5. "
+    "LIGHTING: Soft studio lighting, ambient occlusion, no hard shadows. "
 )
 
-STYLE_SUFFIX = "Rendered in Blender 3D. Unreal Engine 5. Isometric view."
+STYLE_SUFFIX = "High quality 3D render. 4k."
 
-# АНАТОМИЯ: Более конкретные детали, чтобы самокат был "сбитым"
+# АНАТОМИЯ: CHUNKY KICKBOARD
+# Используем слова "Thick" (толстый) и "Cylindrical" (цилиндрический), чтобы он не был палкой.
 SCOOTER_CORE = (
-    "OBJECT: Modern Electric Kick Scooter (Concept Design). "
-    "FORM: 1. Thick cylindrical vertical stem (Royal Blue). "
-    "2. Wide seamless unibody deck (Snow White). "
-    "3. Minimalist wheels with hidden spokes. "
-    "((NO SEAT)), ((NO SADDLE)). Structure is strictly L-shaped. "
+    "OBJECT: A cute thick Electric Kickboard (Scooter without seat). "
+    "DESIGN: 1. A thick vertical blue tube (Steering column). "
+    "2. A wide flat white deck (Platform). "
+    "3. Minimalist enclosed wheels. "
+    "SHAPE: Geometric, sturdy, robust. ((NO SEAT)). "
 )
 
-CAR_CORE = "OBJECT: Cute minimalist autonomous white sedan, blue stripe, matte plastic body."
+CAR_CORE = "OBJECT: A cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 
 # ЦВЕТА
-COLOR_RULES = "PALETTE: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
+COLOR_RULES = "COLORS: Matte Snow White Body (#EAF0F9), Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
 
-# НЕГАТИВ
-NEGATIVE_PROMPT = "(seat:3.0), (saddle:3.0), bicycle, moped, realistic, photo, wood texture, leaf texture, dirt, grunge, shadow, dark, grain"
+# НЕГАТИВ: Блокируем реализм через текстуры
+NEGATIVE_PROMPT = "realistic, photo, photograph, wood texture, leaf texture, fur, hair, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, distorted, thin parts"
 
 # ==========================================
 # 3. ФУНКЦИИ
@@ -90,7 +92,6 @@ def smart_resize(image_bytes, target_w, target_h):
 
 tab1, tab2 = st.tabs(["🎨 Генератор", "📂 Галерея"])
 
-# --- ВКЛАДКА 1 ---
 with tab1:
     col1, col2 = st.columns([1, 2])
     
@@ -113,33 +114,33 @@ with tab1:
 
     with col2:
         if submitted:
-            # 1. Умный перевод и СТИЛИЗАЦИЯ ВВОДА
+            # 1. СТИЛИЗАЦИЯ ВВОДА (The Wrapper Technique)
             try:
                 translator = GoogleTranslator(source='auto', target='en')
                 scene_en = translator.translate(user_input) if user_input else "studio shot"
             except:
                 scene_en = user_input if user_input else "studio shot"
             
-            # ВАЖНО: Мы оборачиваем ввод пользователя в "пластиковую" обертку
-            # Если пользователь пишет "елки", мы отправляем "low poly plastic toy trees"
-            stylized_scene = f"minimalist 3d plastic toy version of {scene_en}, smooth low poly shapes"
+            # ХИТРОСТЬ: Превращаем все объекты пользователя в "toy model"
+            # Если он пишет "tree", мы отправляем "smooth plastic toy model of a tree"
+            stylized_scene = f"cute miniature smooth plastic toy version of {scene_en}"
             
             # 2. Фон
             if "Белый" in bg_select:
-                bg_prompt = "BACKGROUND: ((Solid Flat White Color Hex #FFFFFF)). ((2D)). Isolated."
+                bg_prompt = "BACKGROUND: ((Solid Flat White Color)). Isolated. No Shadows."
             elif "Синий" in bg_select:
-                bg_prompt = "BACKGROUND: ((Solid Flat Royal Blue Color Hex #0668D7)). ((2D)). No shadows."
+                bg_prompt = "BACKGROUND: ((Solid Royal Blue Color #0668D7)). Isolated. No Shadows."
             elif "Оранжевый" in bg_select:
-                bg_prompt = "BACKGROUND: ((Solid Flat Neon Orange Color Hex #FF9601)). ((2D)). No shadows."
+                bg_prompt = "BACKGROUND: ((Solid Neon Orange Color #FF9601)). Isolated. No Shadows."
             elif "Черный" in bg_select:
-                bg_prompt = "BACKGROUND: ((Solid Flat Matte Black Color Hex #000000)). ((2D)). No shadows."
+                bg_prompt = "BACKGROUND: ((Solid Matte Black Color)). Isolated. No Shadows."
 
-            # 3. Сборка
+            # 3. Сборка (Четкая иерархия)
             if "Самокат" in mode:
-                # Четкая структура промпта
-                raw_prompt = f"{STYLE_PREFIX} {SCOOTER_CORE} SCENE: {stylized_scene}. {COLOR_RULES} {bg_prompt} {STYLE_SUFFIX}"
+                # ВАЖНО: Сначала описываем Стиль, потом Объект, потом Сцену, потом Цвета
+                raw_prompt = f"{STYLE_PREFIX} {SCOOTER_CORE} CONTEXT: {stylized_scene}. {COLOR_RULES} {bg_prompt} {STYLE_SUFFIX}"
             elif "Машина" in mode:
-                raw_prompt = f"{STYLE_PREFIX} {CAR_CORE} SCENE: {stylized_scene}. {COLOR_RULES} {bg_prompt} {STYLE_SUFFIX}"
+                raw_prompt = f"{STYLE_PREFIX} {CAR_CORE} CONTEXT: {stylized_scene}. {COLOR_RULES} {bg_prompt} {STYLE_SUFFIX}"
             else:
                 raw_prompt = f"{STYLE_PREFIX} OBJECT: {stylized_scene}. {COLOR_RULES} {bg_prompt} {STYLE_SUFFIX}"
             
@@ -153,7 +154,7 @@ with tab1:
             
             seed = random.randint(1, 999999)
 
-            with st.spinner("Рендер..."):
+            with st.spinner("Генерация..."):
                 img_bytes = generate_image(final_prompt, w, h, seed)
             
             if img_bytes == "BUSY":
@@ -178,7 +179,6 @@ with tab1:
             img = Image.open(io.BytesIO(st.session_state.last_image_bytes))
             st.image(img, caption=f"Результат ({st.session_state.last_image_size[0]}x{st.session_state.last_image_size[1]})", use_container_width=True)
 
-# --- ВКЛАДКА 2 ---
 with tab2:
     files = sorted([f for f in os.listdir(GALLERY_DIR) if f.endswith(".png")], reverse=True)
     if not files:
@@ -220,7 +220,6 @@ with tab2:
                             if os.path.exists(tp):
                                 with open(tp, "r", encoding="utf-8") as f: p = f.read()
                                 with st.spinner("Запрос 4K + Smart Resize..."):
-                                    # Всегда просим 2048
                                     target_w, target_h = 2048, 2048
                                     hq_bytes = generate_image(p, target_w, target_h, seed)
                                     if hq_bytes and hq_bytes != "BUSY":
