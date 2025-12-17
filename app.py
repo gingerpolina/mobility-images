@@ -11,15 +11,15 @@ import datetime
 import shutil
 
 # ==========================================
-# 1. ЗОЛОТАЯ АРХИТЕКТУРА
+# 1. НАСТРОЙКИ
 # ==========================================
 
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-st.set_page_config(page_title="Urent Gen v23 (Env Fix)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v23: Возвращаем Окружение")
+st.set_page_config(page_title="Urent Gen v25 (Pro)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v25: Пассажиры и Композиция")
 
 if 'last_image_bytes' not in st.session_state:
     st.session_state.last_image_bytes = None
@@ -27,24 +27,31 @@ if 'last_image_size' not in st.session_state:
     st.session_state.last_image_size = (0, 0)
 
 # ==========================================
-# 2. БРЕНДБУК (Стиль есть, изоляции нет)
+# 2. БРЕНДБУК (ОБНОВЛЕННЫЙ)
 # ==========================================
 
-# СТИЛЬ: Общий стиль мира
+# СТИЛЬ: Тот самый, из твоего запроса + защита от фотореализма
 STYLE_PREFIX = (
-    "((NO REALISM)). ((3D Clay Render)), ((Matte Plastic World)). "
-    "LOOK: Minimalist geometry, smooth rounded edges, soft-touch materials. "
-    "VIBE: Clean product design, Unreal Engine 5, C4D render. "
-    "LIGHTING: Soft global illumination, aesthetically pleasing, no harsh shadows. "
+    "((NO REALISM)). ((3D minimalist illustration)), ((matte plastic textures)), ((3D claymorphism)). "
+    "LOOK: Smooth rounded shapes, soft studio lighting, ambient occlusion, clean solid background. "
+    "RENDER: Octane render, high fidelity, playful and modern aesthetic, C4D style. "
+    "VIBE: Floating rounded objects, abstract joyful atmosphere. "
 )
 
 STYLE_SUFFIX = "High quality 3D render. 4k."
 
-# АНАТОМИЯ: CHUNKY KICKBOARD (Та же, что в v22 - она хорошая)
+# КОМПОЗИЦИЯ: Защита от обрезания (Zoom Out)
+COMPOSITION_RULES = (
+    "((Whole object strictly inside frame)). ((Wide margins)). ((Zoom out)). "
+    "((Plenty of negative space around the object)). "
+    "Nothing is cut off by the borders. Centered composition."
+)
+
+# АНАТОМИЯ:
 SCOOTER_CORE = (
-    "MAIN OBJECT: A cute thick Electric Kickboard (Scooter without seat). "
-    "DESIGN: 1. Thick vertical blue tube stem. 2. Wide flat white deck. 3. Minimalist enclosed wheels. "
-    "SHAPE: Geometric, sturdy, robust. ((NO SEAT)). "
+    "MAIN OBJECT: A cute thick Electric Kickboard. "
+    "DESIGN: Thick vertical blue tube stem, wide flat white deck, minimalist enclosed wheels. "
+    "SHAPE: Geometric, sturdy, robust. "
 )
 
 CAR_CORE = "MAIN OBJECT: A cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
@@ -52,8 +59,7 @@ CAR_CORE = "MAIN OBJECT: A cute chunky autonomous white sedan car, blue branding
 # ЦВЕТА
 COLOR_RULES = "COLORS: Matte Snow White Body (#EAF0F9), Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
 
-# НЕГАТИВ
-NEGATIVE_PROMPT = "realistic, photo, photograph, wood texture, leaf texture, fur, hair, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, distorted, thin parts, isolated on white"
+NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, cut off, cropped, out of frame, close up, text, watermark"
 
 # ==========================================
 # 3. ФУНКЦИИ
@@ -93,58 +99,92 @@ with tab1:
     
     with col1:
         with st.form("gen_form"):
-            st.subheader("Настройки")
-            mode = st.radio("Объект:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"])
+            st.subheader("🛠️ Конструктор Сцены")
             
-            # НОВЫЙ ВЫБОР ФОНА
-            bg_mode = st.selectbox("Режим Фона:", [
-                "✨ АВТО (Сцена из текста)", 
-                "⬜ Студия Белый (Изоляция)", 
-                "🟦 Студия Синий (Изоляция)",
-                "⬛ Студия Черный (Изоляция)"
+            # 1. Объект
+            mode = st.radio("Транспорт:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"])
+            
+            # 2. Пассажир (Новое!)
+            passenger_input = st.text_input("👤 Пассажир (Оставь пустым, если никого):", placeholder="Например: Дед Мороз, Кот в очках...")
+            
+            st.divider()
+            
+            # 3. Атмосфера и Цвета (Новое!)
+            color_theme = st.selectbox("🎨 Цветовая гамма окружения:", [
+                "🟦 Urent Blue (Синий монохром)", 
+                "⬜ Flat White (Белый минимализм)", 
+                "🟧 Urent Orange (Оранжевый взрыв)",
+                "🎨 Natural (Естественные цвета)",
+                "⬛ Matte Black (Черный стиль)"
             ])
             
+            # 4. Окружение
+            env_input = st.text_area("🌳 Окружение (Что вокруг?):", height=80, placeholder="Например: елки, подарочные коробки, уличные фонари...")
+            
             aspect = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"])
-            # Увеличил высоту поля ввода, чтобы побудить писать больше
-            user_input = st.text_area("Окружение (например: едет по парку между большими елками):", height=120)
             
             submitted = st.form_submit_button("🚀 Сгенерировать", type="primary")
 
     with col2:
         if submitted:
-            # 1. Перевод и подготовка текста окружения
-            try:
-                translator = GoogleTranslator(source='auto', target='en')
-                scene_base = translator.translate(user_input) if user_input else "empty minimalist space"
-            except:
-                scene_base = user_input if user_input else "empty minimalist space"
+            # === ЭТАП 1: ОБРАБОТКА ТЕКСТА ===
+            translator = GoogleTranslator(source='auto', target='en')
             
-            # ВАЖНО: Мы применяем стиль к окружению, но не уменьшаем его до "миниатюры"
-            stylized_env = f"ENVIRONMENT DETAILS: {scene_base}. The environment is also rendered in smooth matte plastic clay style, minimalist low poly shapes, matching the main object."
-            
-            # 2. Логика Фона
-            if "АВТО" in bg_mode:
-                # Если авто - мы НЕ изолируем объект. Фон строится из текста.
-                bg_constraint = "Integrated into the environment. Seamless plastic world."
-            elif "Белый" in bg_mode:
-                bg_constraint = "Isolated on Solid Flat White Background. No Shadows."
-            elif "Синий" in bg_mode:
-                bg_constraint = "Isolated on Solid Royal Blue Background #0668D7. No Shadows."
-            elif "Черный" in bg_mode:
-                bg_constraint = "Isolated on Solid Matte Black Background. No Shadows."
-
-            # 3. Сборка Промпта (Новый порядок)
-            if "Самокат" in mode:
-                # Стиль -> Объект -> Окружение -> Цвета -> Ограничение фона
-                raw_prompt = f"{STYLE_PREFIX} {SCOOTER_CORE} {stylized_env} {COLOR_RULES} {bg_constraint} {STYLE_SUFFIX}"
-            elif "Машина" in mode:
-                raw_prompt = f"{STYLE_PREFIX} {CAR_CORE} {stylized_env} {COLOR_RULES} {bg_constraint} {STYLE_SUFFIX}"
+            # Перевод окружения
+            if env_input:
+                try: env_en = translator.translate(env_input)
+                except: env_en = env_input
             else:
-                raw_prompt = f"{STYLE_PREFIX} OBJECT: {stylized_env}. {COLOR_RULES} {bg_constraint} {STYLE_SUFFIX}"
+                env_en = "minimalist abstract shapes, floating rounded elements" # Дефолтный фон, если пусто
+
+            # Перевод пассажира
+            if passenger_input:
+                try: pass_en = translator.translate(passenger_input)
+                except: pass_en = passenger_input
+                # Делаем пассажира игрушечным
+                passenger_prompt = f"RIDER: A cute 3D plastic toy character of {pass_en} is standing on the deck holding the handle."
+            else:
+                passenger_prompt = "No rider, empty vehicle. ((NO SEAT))."
+
+            # === ЭТАП 2: ЛОГИКА ЦВЕТА (MONOCHROME MAGIC) ===
+            # Мы красим объекты окружения в цвет фона, чтобы получить стиль
+            
+            if "Blue" in color_theme:
+                bg_prompt = "BACKGROUND: Solid Royal Blue Hex #0668D7. No shadows."
+                env_style = f"ENVIRONMENT: {env_en}. All environment elements are made of Matte Royal Blue Plastic to match the background."
+            elif "Orange" in color_theme:
+                bg_prompt = "BACKGROUND: Solid Neon Orange Hex #FF9601. No shadows."
+                env_style = f"ENVIRONMENT: {env_en}. All environment elements are made of Matte Orange Plastic."
+            elif "White" in color_theme:
+                bg_prompt = "BACKGROUND: Solid Flat White. No shadows."
+                env_style = f"ENVIRONMENT: {env_en}. All environment elements are made of Matte White Plastic."
+            elif "Black" in color_theme:
+                bg_prompt = "BACKGROUND: Solid Matte Black. No shadows."
+                env_style = f"ENVIRONMENT: {env_en}. All environment elements are Dark Grey or Black Plastic."
+            else: # Natural
+                bg_prompt = "BACKGROUND: Clean Studio Lighting. Soft gradient."
+                env_style = f"ENVIRONMENT: {env_en}. Elements have colorful matte plastic toy look."
+
+            # === ЭТАП 3: СБОРКА ПРОМПТА ===
+            
+            if "Самокат" in mode:
+                core = SCOOTER_CORE
+            elif "Машина" in mode:
+                core = CAR_CORE
+            else:
+                core = f"MAIN OBJECT: {env_en}" # Если выбрано "Другое"
+            
+            # Финальная формула
+            raw_prompt = (
+                f"{STYLE_PREFIX} {COMPOSITION_RULES} "
+                f"{core} {passenger_prompt} "
+                f"{env_style} {COLOR_RULES} {bg_prompt} "
+                f"{STYLE_SUFFIX}"
+            )
             
             final_prompt = urllib.parse.quote(f"{raw_prompt} --no {NEGATIVE_PROMPT}")
             
-            # 4. Размеры
+            # Размеры
             base_s = 1024
             if "16:9" in aspect: w, h = int(base_s*1.2), int(base_s*0.6)
             elif "9:16" in aspect: w, h = int(base_s*0.6), int(base_s*1.2)
@@ -152,88 +192,9 @@ with tab1:
             
             seed = random.randint(1, 999999)
 
-            with st.spinner("Генерация сцены..."):
+            # === ЭТАП 4: ГЕНЕРАЦИЯ ===
+            with st.spinner("Рендер сцены..."):
                 img_bytes = generate_image(final_prompt, w, h, seed)
             
             if img_bytes == "BUSY":
-                st.warning("Сервер занят. Подождите пару секунд.")
-            elif img_bytes:
-                st.session_state.last_image_bytes = img_bytes
-                st.session_state.last_image_size = (w, h)
-                
-                t_str = datetime.datetime.now().strftime("%H%M%S")
-                fn = f"{t_str}_{seed}_{w}_{h}.png"
-                fp = os.path.join(GALLERY_DIR, fn)
-                
-                with open(fp, "wb") as f: f.write(img_bytes)
-                with open(fp + ".txt", "w", encoding="utf-8") as f: f.write(final_prompt)
-                
-                st.rerun()
-            else:
-                st.error("Ошибка сети.")
-
-        if st.session_state.last_image_bytes:
-            st.success("Готово!")
-            img = Image.open(io.BytesIO(st.session_state.last_image_bytes))
-            st.image(img, caption=f"Результат ({st.session_state.last_image_size[0]}x{st.session_state.last_image_size[1]})", use_container_width=True)
-
-# --- ВКЛАДКА 2 (ГАЛЕРЕЯ - БЕЗ ИЗМЕНЕНИЙ) ---
-with tab2:
-    files = sorted([f for f in os.listdir(GALLERY_DIR) if f.endswith(".png")], reverse=True)
-    if not files:
-        st.info("Галерея пуста.")
-    else:
-        st.write(f"Работ в галерее: {len(files)}")
-        cols = st.columns(2)
-        for i, filename in enumerate(files):
-            fp = os.path.join(GALLERY_DIR, filename)
-            tp = fp + ".txt"
-            
-            try:
-                parts = filename.replace(".png", "").split("_")
-                seed = int(parts[1])
-            except: seed = 0
-
-            with cols[i % 2]:
-                with st.container(border=True):
-                    try:
-                        img = Image.open(fp)
-                        rw, rh = img.size
-                        st.image(img, use_container_width=True)
-                    except: continue
-
-                    if rw >= 2000:
-                        st.caption(f"💎 **4K (Upscaled)** | {rw}x{rh}")
-                        can_up = False
-                    else:
-                        st.caption(f"🔹 Base | {rw}x{rh}")
-                        can_up = True
-                    
-                    c1, c2, c3 = st.columns([1, 1.5, 0.5])
-                    
-                    with open(fp, "rb") as f:
-                        c1.download_button("⬇️", f, filename, "image/png", key=f"d{i}")
-                    
-                    if can_up:
-                        if c2.button("✨ Сделать 2048px", key=f"u{i}"):
-                            if os.path.exists(tp):
-                                with open(tp, "r", encoding="utf-8") as f: p = f.read()
-                                with st.spinner("Запрос 4K + Smart Resize..."):
-                                    target_w, target_h = 2048, 2048
-                                    hq_bytes = generate_image(p, target_w, target_h, seed)
-                                    if hq_bytes and hq_bytes != "BUSY":
-                                        final_bytes = smart_resize(hq_bytes, target_w, target_h)
-                                        n_name = filename.replace(f"_{rw}_{rh}", f"_{target_w}_{target_h}")
-                                        n_path = os.path.join(GALLERY_DIR, n_name)
-                                        with open(n_path, "wb") as f: f.write(final_bytes)
-                                        shutil.copy(tp, n_path + ".txt")
-                                        os.remove(fp); os.remove(tp)
-                                        st.rerun()
-                                    else:
-                                        st.error("Сервер занят.")
-                            else: st.error("Нет данных.")
-                    
-                    if c3.button("🗑️", key=f"x{i}"):
-                        os.remove(fp)
-                        if os.path.exists(tp): os.remove(tp)
-                        st.rerun()
+                st.warning("Сервер занят (4
