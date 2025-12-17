@@ -11,8 +11,8 @@ import datetime
 # --- CONFIG ---
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
-st.set_page_config(page_title="Urent Gen v39 (Toy Body)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v39: Универсальная Форма")
+st.set_page_config(page_title="Scooter Gen v40", layout="wide", page_icon="🛴")
+st.title("🛴 Scooter Gen v40: Пропорции и Поза")
 
 if 'last_image_bytes' not in st.session_state: st.session_state.last_image_bytes = None
 if 'last_image_size' not in st.session_state: st.session_state.last_image_size = (0, 0)
@@ -32,7 +32,7 @@ COMPOSITION_RULES = "VIEW: Long shot (Full Body). COMPOSITION: The Main Object, 
 SCOOTER_CORE = "MAIN OBJECT: Modern Electric Kick Scooter. DESIGN: 1. Tall vertical Blue tube (Steering stem) with T-handlebars. 2. Wide, seamless, low-profile unibody standing deck (Snow White). 3. Small minimalist wheels partially enclosed. SHAPE: Sleek, integrated, geometric L-shape. ((NO SEAT))."
 CAR_CORE = "MAIN OBJECT: Cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 COLOR_RULES = "COLORS: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
-NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, levitation, hovering feet, jumping"
+NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, levitation, hovering feet, jumping, tiny character, giant scooter"
 
 # --- FUNCTIONS ---
 def make_request_with_retry(url, max_retries=3):
@@ -73,7 +73,8 @@ with tab1:
             mode = st.radio("Объект:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"])
             passenger_input = st.text_input("👤 Пассажир:", placeholder="Например: Кот...")
             st.divider()
-            color_theme = st.selectbox("🎨 Окружение:", ["🟦 Urent Blue", "⬜ Flat White", "🟧 Urent Orange", "🎨 Natural", "⬛ Matte Black"])
+            # Переименовали цвета в нейтральные
+            color_theme = st.selectbox("🎨 Окружение:", ["🟦 Royal Blue (Brand Style)", "⬜ Flat White", "🟧 Neon Orange (Brand Style)", "🎨 Natural", "⬛ Matte Black"])
             env_input = st.text_area("🌳 Детали окружения:", height=80)
             aspect = st.selectbox("Формат:", ["1:1", "16:9", "9:16"])
             submitted = st.form_submit_button("🚀 Сгенерировать", type="primary")
@@ -83,20 +84,23 @@ with tab1:
             env_en = translate_text(env_input) if env_input else ""
             pass_en = translate_text(passenger_input) if passenger_input else ""
 
-            # --- ИСПРАВЛЕННАЯ ЛОГИКА ПАССАЖИРА (V39 - UNIVERSAL TOY BODY) ---
+            # --- ИСПРАВЛЕННАЯ ЛОГИКА (V40 - SCALE & STANCE) ---
             if pass_en:
                 if "Самокат" in mode:
                     passenger_prompt = (
                         "RIDER: A cute 3D plastic toy character of " + pass_en + ". " +
-                        # 1. ЕДИНАЯ ФОРМА ТЕЛА
-                        "BODY SHAPE: Universal simplified round vinyl toy shape. Chubby, anthropomorphic, minimalistic. " +
-                        "PROPORTIONS: Short legs, round tummy, large simplified head. " +
-                        "FACE: Minimalist. Eyes are simple small BLACK DOTS (pimpules). No complex fur details. " +
-                        # 2. ФИЗИКА (Из v38)
-                        "ARMS: Arms extended, HANDS FIRMLY GRIPPING THE T-HANDLEBARS. " +
-                        "LEGS: KNEES SLIGHTLY BENT for stability. " + 
+                        # 1. ТЕЛО
+                        "BODY SHAPE: Universal simplified round vinyl toy shape. Chubby, anthropomorphic. " +
+                        "FACE: Minimalist. Eyes are simple small BLACK DOTS. " +
+                        # 2. МАСШТАБ (НОВОЕ)
+                        "SCALE: Correct scale relative to scooter. " +
+                        "The character's SHOULDERS MUST BE POSITIONED HIGHER than the scooter handlebars. " +
+                        "The character is NOT tiny. " +
+                        # 3. ПОЗА (НОВОЕ)
+                        "ARMS: Extended, HANDS FIRMLY GRIPPING THE T-HANDLEBARS. " +
+                        "LEGS: ONE LEG PLACED SLIGHTLY AHEAD OF THE OTHER for balance. " + 
                         "FEET: SOLES OF FEET FLAT ON THE DECK SURFACE. ZERO GAP. " +
-                        "POSE: Weight bearing standing pose. Grounded. NOT levitating."
+                        "POSE: Weight bearing standing pose. Grounded."
                     )
                 else:
                     passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + ". Simple round vinyl toy style."
@@ -124,59 +128,4 @@ with tab1:
             if "16:9" in aspect: w, h = int(base_s*1.2), int(base_s*0.6)
             elif "9:16" in aspect: w, h = int(base_s*0.6), int(base_s*1.2)
             else: w, h = base_s, base_s
-            seed = random.randint(1, 999999)
-
-            status = st.empty(); status.info("🔄 Стучимся к серверу (3 попытки)...")
-            img_bytes = generate_image(final_prompt, w, h, seed)
-            
-            if img_bytes:
-                status.success("✅ Готово!")
-                st.session_state.last_image_bytes = img_bytes; st.session_state.last_image_size = (w, h)
-                t_str = datetime.datetime.now().strftime("%H%M%S")
-                fn = f"{t_str}_{seed}_{w}_{h}.png"
-                with open(os.path.join(GALLERY_DIR, fn), "wb") as f: f.write(img_bytes)
-                with open(os.path.join(GALLERY_DIR, fn + ".txt"), "w", encoding="utf-8") as f: f.write(final_prompt)
-                time.sleep(0.5); st.rerun()
-            else: status.error("❌ Сервер перегружен.")
-
-        if st.session_state.last_image_bytes:
-            st.image(Image.open(io.BytesIO(st.session_state.last_image_bytes)), caption="Результат")
-
-# Gallery Code (Standard)
-with tab2:
-    files = sorted([f for f in os.listdir(GALLERY_DIR) if f.endswith(".png")], reverse=True)
-    if not files: st.info("Пусто.")
-    else:
-        st.write(f"Всего: {len(files)}")
-        cols = st.columns(2)
-        for i, filename in enumerate(files):
-            fp = os.path.join(GALLERY_DIR, filename)
-            tp = fp + ".txt"
-            with cols[i % 2]:
-                with st.container(border=True):
-                    try: img = Image.open(fp); st.image(img)
-                    except: continue
-                    c1, c2, c3 = st.columns([1, 1.5, 0.5])
-                    with open(fp, "rb") as f: c1.download_button("⬇️", f, filename)
-                    rw, rh = img.size
-                    if rw < 2000:
-                        if c2.button("✨ 2048px", key=f"u{i}"):
-                            if os.path.exists(tp):
-                                with open(tp, "r", encoding="utf-8") as f: p = f.read()
-                                st.toast("⏳ Улучшаем...")
-                                try: old_seed = int(filename.split("_")[1])
-                                except: old_seed = random.randint(1, 99999)
-                                hq = generate_image(p, 2048, 2048, old_seed)
-                                if hq:
-                                    final = smart_resize(hq, 2048, 2048)
-                                    n_path = os.path.join(GALLERY_DIR, filename.replace(f"_{rw}_{rh}", "_2048_2048"))
-                                    with open(n_path, "wb") as f: f.write(final)
-                                    with open(n_path + ".txt", "w", encoding="utf-8") as f: f.write(p)
-                                    os.remove(fp); os.remove(tp)
-                                    st.rerun()
-                                else: st.error("Сервер занят")
-                            else: st.error("Нет промпта")
-                    if c3.button("🗑️", key=f"x{i}"):
-                        os.remove(fp); 
-                        if os.path.exists(tp): os.remove(tp)
-                        st.rerun()
+            seed = random.randint(1, 999999
