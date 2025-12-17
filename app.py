@@ -18,8 +18,8 @@ GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-st.set_page_config(page_title="Urent Gen v27 (Art Director)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v27: Art Director")
+st.set_page_config(page_title="Urent Gen v29 (Smart Rev)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v29: Умная Ревизия")
 
 if 'last_image_bytes' not in st.session_state:
     st.session_state.last_image_bytes = None
@@ -27,48 +27,56 @@ if 'last_image_size' not in st.session_state:
     st.session_state.last_image_size = (0, 0)
 
 # ==========================================
-# 2. БРЕНДБУК (ОБНОВЛЕННЫЙ)
+# 2. БРЕНДБУК (МЯГКАЯ СИЛА)
 # ==========================================
 
-# СТИЛЬ: Тот самый оригинальный, но с защитой
+# СТИЛЬ: Больше воздуха, меньше агрессии. Описываем желанный результат.
 STYLE_PREFIX = (
-    "((NO REALISM)). style of 3D minimalist illustration, matte plastic textures, "
-    "smooth rounded shapes, soft studio lighting, ambient occlusion, vibrant colors, "
-    "clean solid background, Octane render, high fidelity, 3D claymorphism, "
-    "playful and modern aesthetic, C4D style. "
+    "((NO REALISM)). A high-quality 3D minimalist render in a matte plastic toy world style. "
+    "Claymorphism aesthetic, smooth rounded geometric shapes, soft-touch materials. "
+    "Clean studio lighting, gentle soft shadows, ambient occlusion. "
+    "Playful, modern, friendly vibe. "
 )
 
-STYLE_SUFFIX = "High quality 3D render. 4k."
+STYLE_SUFFIX = "Detailed 3D render. 4k resolution."
 
-# КОМПОЗИЦИЯ: Zoom Out, чтобы не резались края
+# КОМПОЗИЦИЯ: Конкретные инструкции про отступы
 COMPOSITION_RULES = (
-    "((Whole object strictly inside frame)). ((Wide margins)). ((Zoom out)). "
-    "((Plenty of negative space around the object)). "
-    "Nothing is cut off by the borders. Centered composition. "
+    "COMPOSITION: The entire object is centered and fully contained within the canvas. "
+    "Generous margins on all sides (top, bottom, left, right). "
+    "Nothing is cropped or cut off by the frame edges. "
 )
 
-# АНАТОМИЯ
+# АНАТОМИЯ САМОКАТА (Описательная, а не запретительная)
+# Мы описываем "стоячий" дизайн так подробно, что сиденью некуда встать.
 SCOOTER_CORE = (
-    "MAIN OBJECT: A cute thick Electric Kickboard. "
-    "DESIGN: Thick vertical blue tube stem, wide flat white deck, minimalist enclosed wheels. "
-    "SHAPE: Geometric, sturdy, robust. ((NO SEAT)). "
+    "MAIN OBJECT: A modern industrial design concept of an Electric Kick Scooter meant for standing. "
+    "FORM FUNCTION: A tall, thick, vertical steering column (Royal Blue) connected to a long, low, wide, perfectly flat standing deck (Snow White). "
+    "Minimalist enclosed wheels. The deck is empty and flat, designed for a standing rider. "
 )
 
 CAR_CORE = "MAIN OBJECT: A cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 
-# ЦВЕТА
-COLOR_RULES = "COLORS: Matte Snow White Body (#EAF0F9), Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
+# ЦВЕТА: Глобальные правила
+COLOR_RULES = "GLOBAL COLORS: Matte Snow White (#EAF0F9), Royal Blue (#0668D7), Neon Orange (#FF9601). NO PINK."
 
-NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, cut off, cropped, out of frame, close up, text, watermark"
+# НЕГАТИВ: Убираем лишнее, но без истерики
+NEGATIVE_PROMPT = (
+    "realistic, photo, grain, noise, dirt, metal reflection, "
+    "seat, saddle, chair, bench, moped, motorcycle, "
+    "cropped, cut off, out of frame, partially visible, "
+    "text, watermark, low quality"
+)
 
 # ==========================================
 # 3. ФУНКЦИИ
 # ==========================================
 
 def generate_image(prompt, width, height, seed, model='flux'):
-    url = f"https://pollinations.ai/p/{prompt}?width={width}&height={height}&model={model}&nologo=true&enhance=false&seed={seed}"
+    # Используем enhance=true для попытки поднять детализацию самоката
+    url = f"https://pollinations.ai/p/{prompt}?width={width}&height={height}&model={model}&nologo=true&enhance=true&seed={seed}"
     try:
-        timeout_val = 80 if width > 1200 else 30
+        timeout_val = 90 if width > 1200 else 40
         response = requests.get(url, timeout=timeout_val)
         if response.status_code == 200:
             return response.content
@@ -99,17 +107,10 @@ with tab1:
     
     with col1:
         with st.form("gen_form"):
-            st.subheader("🛠️ Конструктор Сцены")
-            
-            # 1. Объект
+            st.subheader("🛠️ Конструктор")
             mode = st.radio("Транспорт:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"])
-            
-            # 2. Пассажир (Новое!)
-            passenger_input = st.text_input("👤 Пассажир (Пусто = без никого):", placeholder="Например: Дед Мороз, Кот...")
-            
+            passenger_input = st.text_input("👤 Пассажир (Пусто = без никого):", placeholder="Например: Кот в шлеме...")
             st.divider()
-            
-            # 3. Цветовая гамма (Новое!)
             color_theme = st.selectbox("🎨 Палитра окружения:", [
                 "🟦 Urent Blue (Синий монохром)", 
                 "⬜ Flat White (Белый минимализм)", 
@@ -117,68 +118,59 @@ with tab1:
                 "🎨 Natural (Естественные цвета)",
                 "⬛ Matte Black (Черный стиль)"
             ])
-            
-            # 4. Окружение
-            env_input = st.text_area("🌳 Окружение (Пусто = студийный фон):", height=80, placeholder="Например: елки, подарочные коробки...")
-            
+            env_input = st.text_area("🌳 Детали окружения (Пусто = чистая студия):", height=80, placeholder="Например: елки, городские улицы...")
             aspect = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"])
             
             submitted = st.form_submit_button("🚀 Сгенерировать", type="primary")
 
     with col2:
         if submitted:
-            # === 1. ПЕРЕВОД ===
+            # === ПЕРЕВОД ===
             translator = GoogleTranslator(source='auto', target='en')
+            env_en = translator.translate(env_input) if env_input else ""
             
-            # Окружение
-            if env_input:
-                try: env_en = translator.translate(env_input)
-                except: env_en = env_input
-            else:
-                env_en = "" # Пустое окружение
-
-            # Пассажир
             if passenger_input:
-                try: pass_en = translator.translate(passenger_input)
-                except: pass_en = passenger_input
-                passenger_prompt = f"RIDER: A cute 3D plastic toy character of {pass_en} is standing on the deck."
+                pass_en = translator.translate(passenger_input)
+                passenger_prompt = f"RIDER: A cute 3D plastic toy character of {pass_en} standing on the deck."
             else:
-                passenger_prompt = "No rider, empty vehicle. ((NO SEAT))."
+                # Мягкое напоминание об отсутствии сиденья
+                passenger_prompt = "No rider. The deck is empty and flat. (No seat)."
 
-            # === 2. ЛОГИКА ОКРУЖЕНИЯ И ЦВЕТА ===
+            # === НОВАЯ ЛОГИКА ОКРУЖЕНИЯ (Спасение елок) ===
             
+            # Определение материалов окружения на основе темы
             if "Blue" in color_theme:
-                bg_color = "Solid Royal Blue Hex #0668D7"
-                env_material = "Matte Royal Blue Plastic"
+                env_style_directive = "All environmental elements are rendered in monochrome Matte Royal Blue plastic."
+                bg_directive = "seamless blue studio cyclorama"
             elif "Orange" in color_theme:
-                bg_color = "Solid Neon Orange Hex #FF9601"
-                env_material = "Matte Orange Plastic"
+                env_style_directive = "All environmental elements are rendered in monochrome Matte Neon Orange plastic."
+                bg_directive = "seamless orange studio cyclorama"
             elif "White" in color_theme:
-                bg_color = "Solid Flat White"
-                env_material = "Matte White Plastic"
+                env_style_directive = "All environmental elements are rendered in monochrome Matte White plastic."
+                bg_directive = "seamless white studio cyclorama"
             elif "Black" in color_theme:
-                bg_color = "Solid Matte Black"
-                env_material = "Dark Grey Plastic"
+                env_style_directive = "All environmental elements are rendered in monochrome Matte Black plastic."
+                bg_directive = "seamless black studio cyclorama"
             else: # Natural
-                bg_color = "Clean Studio Gradient"
-                env_material = "Colorful matte plastic"
+                env_style_directive = "Environmental elements have colorful matte plastic toy look."
+                bg_directive = "soft studio gradient background"
 
+            # Формирование блока окружения
             if env_en:
-                # Если есть описание сцены - красим объекты сцены
-                full_env_prompt = f"ENVIRONMENT: {env_en}. All elements are made of {env_material}. BACKGROUND: {bg_color}. Seamless integration."
+                # Если есть описание, мы интегрируем его с материалами и фоном
+                full_env_prompt = f"ENVIRONMENT SCENE: {env_en}. {env_style_directive} The scene is set against a {bg_directive}."
             else:
-                # Если нет описания - просто фон
-                full_env_prompt = f"BACKGROUND: {bg_color}. Isolated studio shot. No shadows."
+                # Если описания нет, просто чистый фон
+                full_env_prompt = f"ENVIRONMENT: Isolated studio shot against a clean {bg_directive}. No other objects."
 
-            # === 3. СБОРКА ПРОМПТА ===
-            if "Самокат" in mode:
-                core_obj = SCOOTER_CORE
-            elif "Машина" in mode:
-                core_obj = CAR_CORE
-            else:
-                core_obj = f"MAIN OBJECT: {env_en}" if env_en else "MAIN OBJECT: Abstract shape"
+            # === СБОРКА ===
+            if "Самокат" in mode: core_obj = SCOOTER_CORE
+            elif "Машина" in mode: core_obj = CAR_CORE
+            else: core_obj = f"MAIN OBJECT: {env_en}" if env_en else "MAIN OBJECT: Abstract plastic shape"
 
-            # Собираем части через плюсы (безопаснее чем f-string для больших блоков)
+            # Важный порядок: Стиль -> Композиция -> Объект -> Пассажир -> ОКРУЖЕНИЕ -> Цвета -> Суффикс
+            # Окружение теперь стоит ДО глобальных правил цвета, чтобы его не затерло.
+            
             part1 = STYLE_PREFIX + " " + COMPOSITION_RULES + " "
             part2 = core_obj + " " + passenger_prompt + " "
             part3 = full_env_prompt + " " + COLOR_RULES + " " + STYLE_SUFFIX
@@ -187,33 +179,30 @@ with tab1:
             final_prompt = urllib.parse.quote(f"{raw_prompt} --no {NEGATIVE_PROMPT}")
             
             # Размеры
-            base_s = 1024
+            base_s = 1024 
             if "16:9" in aspect: w, h = int(base_s*1.2), int(base_s*0.6)
             elif "9:16" in aspect: w, h = int(base_s*0.6), int(base_s*1.2)
             else: w, h = base_s, base_s
             
             seed = random.randint(1, 999999)
 
-            # === 4. ГЕНЕРАЦИЯ ===
-            with st.spinner("Рендер сцены..."):
+            # === ГЕНЕРАЦИЯ ===
+            with st.spinner("Рендер сцены (может занять минуту)..."):
                 img_bytes = generate_image(final_prompt, w, h, seed)
             
             if img_bytes == "BUSY":
-                st.warning("Сервер занят (429).")
+                st.warning("Сервер перегружен (429). Попробуйте позже.")
             elif img_bytes:
                 st.session_state.last_image_bytes = img_bytes
                 st.session_state.last_image_size = (w, h)
-                
                 t_str = datetime.datetime.now().strftime("%H%M%S")
                 fn = f"{t_str}_{seed}_{w}_{h}.png"
                 fp = os.path.join(GALLERY_DIR, fn)
-                
                 with open(fp, "wb") as f: f.write(img_bytes)
                 with open(fp + ".txt", "w", encoding="utf-8") as f: f.write(final_prompt)
-                
                 st.rerun()
             else:
-                st.error("Ошибка сети.")
+                st.error("Ошибка сети или тайм-аут.")
 
         if st.session_state.last_image_bytes:
             st.success("Готово!")
@@ -242,7 +231,6 @@ with tab2:
                     c1, c2, c3 = st.columns([1, 1.5, 0.5])
                     with open(fp, "rb") as f: c1.download_button("⬇️", f, filename)
                     
-                    # Кнопка Апскейла
                     rw, rh = img.size
                     if rw < 2000:
                         if c2.button("✨ 2048px", key=f"u{i}"):
@@ -258,7 +246,6 @@ with tab2:
                                         os.remove(fp); os.remove(tp)
                                         st.rerun()
                             else: st.error("Ошибка")
-                    
                     if c3.button("🗑️", key=f"x{i}"):
                         os.remove(fp); 
                         if os.path.exists(tp): os.remove(tp)
