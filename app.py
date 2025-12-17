@@ -11,8 +11,8 @@ import datetime
 # --- CONFIG ---
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
-st.set_page_config(page_title="Urent Gen v37 (Physics Fix)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v37: Физика и Хват")
+st.set_page_config(page_title="Urent Gen v38 (Gravity Fix)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v38: Гравитация")
 
 if 'last_image_bytes' not in st.session_state: st.session_state.last_image_bytes = None
 if 'last_image_size' not in st.session_state: st.session_state.last_image_size = (0, 0)
@@ -32,7 +32,7 @@ COMPOSITION_RULES = "VIEW: Long shot (Full Body). COMPOSITION: The Main Object, 
 SCOOTER_CORE = "MAIN OBJECT: Modern Electric Kick Scooter. DESIGN: 1. Tall vertical Blue tube (Steering stem) with T-handlebars. 2. Wide, seamless, low-profile unibody standing deck (Snow White). 3. Small minimalist wheels partially enclosed. SHAPE: Sleek, integrated, geometric L-shape. ((NO SEAT))."
 CAR_CORE = "MAIN OBJECT: Cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 COLOR_RULES = "COLORS: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
-NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, hovering feet, levitation"
+NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, levitation, hovering feet, jumping"
 
 # --- FUNCTIONS ---
 def make_request_with_retry(url, max_retries=3):
@@ -83,17 +83,17 @@ with tab1:
             env_en = translate_text(env_input) if env_input else ""
             pass_en = translate_text(passenger_input) if passenger_input else ""
 
-            # --- ИСПРАВЛЕННАЯ ЛОГИКА (V37 - CONTACT POINTS) ---
+            # --- ИСПРАВЛЕННАЯ ЛОГИКА ПАССАЖИРА (V38 - GRAVITY) ---
             if pass_en:
                 if "Самокат" in mode:
-                    # Мы используем строгие точки контакта
+                    # Руки работают (v36), добавляем Гравитацию для ног
                     passenger_prompt = (
                         "RIDER: A cute 3D plastic toy character of " + pass_en + ". " +
-                        "BODY: Anthropomorphic, standing on hind legs. " +
-                        "CONTACT POINTS: 1. Feet are FLAT and PLANTED FIRMLY on the scooter deck (No hovering). " +
-                        "2. Arms are reached out forward. " +
-                        "3. Paws are PHYSICALLY WRAPPED AROUND the handlebar grips. " +
-                        "POSE: Leaning forward slightly to steer. Driving stance. NOT sitting."
+                        "BODY: Anthropomorphic. " +
+                        "ARMS: Arms extended, HANDS FIRMLY GRIPPING THE T-HANDLEBARS. " +
+                        "LEGS: KNEES SLIGHTLY BENT for stability. " + 
+                        "FEET: SOLES OF FEET FLAT ON THE DECK SURFACE. ZERO GAP between feet and deck. " +
+                        "POSE: Weight bearing standing pose. Grounded. NOT levitating. NOT sitting."
                     )
                 else:
                     passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + "."
