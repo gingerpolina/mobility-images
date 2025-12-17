@@ -3,29 +3,31 @@ import requests
 from PIL import Image
 import io
 import urllib.parse
+from deep_translator import GoogleTranslator
 
-# --- НОВЫЕ ЖЕСТКИЕ НАСТРОЙКИ СТИЛЯ (ДЛЯ FLUX) ---
-# Мы сразу говорим модели, ЧТО рисовать (самокат) и В КАКОМ СТИЛЕ.
-# Ваш запрос на русском будет добавляться в конец этого блока.
-GLOBAL_PROMPT = """
-A clean 3D minimalist render of a modern electric kick scooter.
-STYLE: Claymorphism, matte plastic texture, smooth rounded shapes, soft friendly studio lighting. No grunge, no noise.
-COLOR PALETTE: The scooter is predominantly Soft White (#EAF0F9) and Blue (#0668D7), with distinct Orange (#FF9601) accents on wheels/controls.
-BACKGROUND: The object stands isolated against a COMPLETELY FLAT, SOLID single color background (Soft White #EAF0F9). THERE ARE NO CAST SHADOWS on the floor or background. Zero gradients.
-SCENE DETAILS: The scooter is
+# --- ГЛОБАЛЬНЫЙ СТИЛЬ (ПРИМЕНЯЕТСЯ КО ВСЕМУ) ---
+# Описываем только визуальный стиль, цвета и фон. Без конкретного объекта.
+GLOBAL_STYLE = """
+STYLE: 3D minimalist illustration, claymorphism style, matte plastic texture, smooth rounded shapes, soft studio lighting. High resolution, rendered in Blender.
+COLOR PALETTE: Predominantly Soft Whites (#EAF0F9) and Blue (#0668D7), with Accent Orange (#FF9601).
+BACKGROUND: Isolated on a COMPLETELY FLAT, SOLID single color background (Soft White). NO shadows on background, no gradients.
 """
 
-# Усилили негативный промпт против теней и реализма
-NEGATIVE_PROMPT = "photorealistic, realistic, cast shadows, floor shadows, ambient occlusion, complex background, indoors, outdoors, detailed environment, grunge, text, watermark"
+# --- СПЕЦИАЛЬНЫЕ ПРАВИЛА ДЛЯ САМОКАТОВ ---
+SCOOTER_RULES = """
+OBJECT SPECIFICS: Modern electric kick scooter. Must have battery in the floor deck. NO seats. NO mirrors. NO logos. Minimalist design.
+"""
+
+NEGATIVE_PROMPT = "photorealistic, realistic, dark, gloomy, low quality, pixelated, text, watermark, complex background, shadow on wall, gradient background"
+
 # -----------------------------------------------------
 
-st.set_page_config(page_title="Free 3D Generator", layout="centered", page_icon="🛴")
-st.title("🛴 Бесплатный 3D Генератор (Flux v2)")
-st.caption("Работает на базе Pollinations.ai. Стиль и объект закреплены жестко.")
+st.set_page_config(page_title="Universal 3D Generator", layout="centered", page_icon="🎨")
+st.title("🎨 Универсальный 3D Генератор (Auto-Translate)")
+st.caption("Пишите на русском. Если это самокат — применяются правила бренда.")
 
 with st.form("prompt_form"):
-    # Теперь пользователь добавляет только детали сцены
-    user_prompt = st.text_area("Детали сцены (например: стоит рядом с новогодней елкой):", value="стоит рядом с минималистичной новогодней елкой", height=100)
+    user_input = st.text_area("Что изобразить?", value="Электросамокат стоит под новогодней елкой", height=100)
     
     size_option = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"], index=0)
     
@@ -36,47 +38,55 @@ with st.form("prompt_form"):
     else:
         width, height = 720, 1280
         
-    submit = st.form_submit_button("🎨 Сгенерировать бесплатно")
+    submit = st.form_submit_button("✨ Сгенерировать")
 
-if submit and user_prompt:
-    st.info("Генерирую... (Модель Flux, 5-15 секунд)")
-    
-    # 1. Собираем полный промпт: Жесткая база + ваш запрос + негативный промпт
-    # Мы добавляем ваш текст после "The scooter is..."
-    full_prompt = f"{GLOBAL_PROMPT} {user_prompt}. {NEGATIVE_PROMPT}"
-    
-    # 2. Кодируем для URL
-    encoded_prompt = urllib.parse.quote(full_prompt)
-    
-    # 3. Ссылка на API Pollinations
-    # Добавил enhance=false, чтобы сервис меньше "фантазировал" от себя
-    url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false"
+if submit and user_input:
+    st.info("Перевожу запрос и генерирую...")
     
     try:
-        response = requests.get(url, timeout=45)
+        # 1. АВТОМАТИЧЕСКИЙ ПЕРЕВОД (RU -> EN)
+        translator = GoogleTranslator(source='auto', target='en')
+        translated_prompt = translator.translate(user_input)
+        
+        # Показываем пользователю, как перевелось (для контроля)
+        st.caption(f"🇬🇧 Перевод для нейросети: *{translated_prompt}*")
+        
+        # 2. УМНАЯ ЛОГИКА
+        # Проверяем, есть ли слово "scooter" в переводе
+        final_object_prompt = translated_prompt
+        
+        if "scooter" in translated_prompt.lower():
+            # Если это самокат, добавляем жесткие правила бренда
+            full_prompt = f"{GLOBAL_STYLE} {SCOOTER_RULES} SCENE: {translated_prompt}. {NEGATIVE_PROMPT}"
+            st.toast("🛴 Обнаружен самокат! Применены правила бренда (без сиденья, батарея в деке).")
+        else:
+            # Если это что-то другое, просто применяем стиль
+            full_prompt = f"{GLOBAL_STYLE} OBJECT: {translated_prompt}. {NEGATIVE_PROMPT}"
+        
+        # 3. Отправка запроса
+        encoded_prompt = urllib.parse.quote(full_prompt)
+        url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false"
+        
+        response = requests.get(url, timeout=60)
         
         if response.status_code == 200:
             image_data = response.content
             image = Image.open(io.BytesIO(image_data))
             
             st.success("Готово!")
-            # Показываем, какой именно промпт улетел в модель (для отладки)
-            with st.expander("Посмотреть полный отправленный промпт"):
-                st.write(full_prompt)
-            st.image(image, caption="Результат (Flux)", use_container_width=True)
+            st.image(image, caption=f"Результат ({size_option})", use_container_width=True)
             
             st.download_button(
                 label="⬇️ Скачать PNG",
                 data=image_data,
-                file_name="scooter_3d_flux.png",
+                file_name="generated_3d.png",
                 mime="image/png"
             )
         else:
-            st.error(f"Ошибка сервера Pollinations: {response.status_code}")
-            st.write("Попробуйте еще раз через минуту.")
+            st.error("Ошибка на сервере генерации.")
             
     except Exception as e:
-        st.error(f"Ошибка соединения: {e}")
+        st.error(f"Ошибка: {e}")
 
 elif submit:
-    st.warning("Напишите детали сцены.")
+    st.warning("Введите описание.")
