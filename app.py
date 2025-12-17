@@ -11,42 +11,42 @@ import datetime
 import shutil
 
 # ==========================================
-# 1. НАСТРОЙКИ И ПАПКИ
+# 1. НАСТРОЙКИ
 # ==========================================
 
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-st.set_page_config(page_title="Urent Gen v18 (Final Fix)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v18: Стабильная + Синий Фон")
+st.set_page_config(page_title="Urent Gen v20 (Studio)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v20: Студийный Свет")
 
-# Инициализация памяти сессии (чтобы картинка не пропадала)
 if 'last_image_bytes' not in st.session_state:
     st.session_state.last_image_bytes = None
 if 'last_image_size' not in st.session_state:
     st.session_state.last_image_size = (0, 0)
 
 # ==========================================
-# 2. БРЕНДБУК (АГРЕССИВНЫЙ ПЛАСТИК)
+# 2. БРЕНДБУК
 # ==========================================
 
-# СТИЛЬ: Жесткий запрет на реализм
+# СТИЛЬ: Матовый пластик, Идеальная форма
 STYLE_PREFIX = (
     "((NO REALISM)). ((Matte Plastic Toy World)). ((3D Claymorphism)). "
-    "LOOK: Cute, Minimalist, Smooth rounded edges, Play-Doh texture. "
+    "LOOK: Minimalist, Smooth rounded edges, Clean geometry. "
     "MATERIAL: Soft-touch matte plastic everywhere. "
-    "LIGHTING: Bright Softbox lighting, clean shadows. "
+    "LIGHTING: Flat studio lighting, evenly lit. "
 )
 
 STYLE_SUFFIX = "Everything is made of matte plastic. Unreal Engine 5. Blender 3D."
 
-# АНАТОМИЯ: СКЕЙТ С РУЧКОЙ (Хак против сидений)
+# АНАТОМИЯ: L-SHAPE (Чтобы не было кресла)
 SCOOTER_CORE = (
-    "OBJECT: A modern Stand-up Electric Kickboard. "
-    "ANATOMY: A flat skateboard-like deck (Snow White) + A vertical T-bar handle (Royal Blue). "
-    "((STRICTLY NO SEAT)), ((NO SADDLE)), ((NO CHAIR)). "
-    "The object is designed for STANDING only. "
+    "OBJECT: A modern Electric Kick Scooter. "
+    "SILHOUETTE: ((Strict L-Shaped profile)). "
+    "ANATOMY: 1. Tall vertical steering stem (Royal Blue). 2. Flat low deck for standing (Snow White). 3. Two small wheels. "
+    "((NO SEAT)), ((NO SADDLE)), ((NO CHAIR)). "
+    "The deck is completely flat and empty. Standing mode only. "
 )
 
 CAR_CORE = "OBJECT: Minimalist autonomous white sedan, blue stripe, matte plastic body."
@@ -54,19 +54,17 @@ CAR_CORE = "OBJECT: Minimalist autonomous white sedan, blue stripe, matte plasti
 # ЦВЕТА
 COLOR_RULES = "PALETTE: Matte Snow White Body, Royal Blue Accents (#0668D7), Neon Orange Details (#FF9601). NO PINK."
 
-# НЕГАТИВ (Усиленный вес против сидений и фото)
-NEGATIVE_PROMPT = "(seat:3.0), (saddle:3.0), (chair:3.0), moped, vespa, motorcycle, realistic, photo, metal, chrome, reflection, dirt, grunge, pink, purple, watermark"
+# НЕГАТИВ (Против теней и градиентов)
+NEGATIVE_PROMPT = "(shadow:2.0), (cast shadow:2.0), (gradient:2.0), (vignette:2.0), (shading:1.5), (seat:3.0), (saddle:3.0), moped, realistic, photo, metal, chrome, reflection, dirt, pink, purple, watermark"
 
 # ==========================================
 # 3. ФУНКЦИИ
 # ==========================================
 
 def generate_image(prompt, width, height, seed, model='flux'):
-    # Формируем URL
+    # Запрашиваем генерацию
     url = f"https://pollinations.ai/p/{prompt}?width={width}&height={height}&model={model}&nologo=true&enhance=false&seed={seed}"
-    
     try:
-        # Тайм-аут: 80 сек для больших (HD), 30 для маленьких
         timeout_val = 80 if width > 1200 else 30
         response = requests.get(url, timeout=timeout_val)
         
@@ -78,6 +76,23 @@ def generate_image(prompt, width, height, seed, model='flux'):
             return None
     except:
         return None
+
+def smart_resize(image_bytes, target_w, target_h):
+    """
+    Если сервер вернул картинку меньше, чем мы хотели,
+    мы растягиваем её сами методом LANCZOS (лучшее качество).
+    """
+    img = Image.open(io.BytesIO(image_bytes))
+    current_w, current_h = img.size
+    
+    # Если картинка меньше цели, делаем ресайз
+    if current_w < target_w or current_h < target_h:
+        img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+        
+    # Возвращаем байты
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 # ==========================================
 # 4. ИНТЕРФЕЙС
@@ -94,50 +109,46 @@ with tab1:
             st.subheader("Настройки")
             mode = st.radio("Объект:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"])
             
-            # ВЫБОР ФОНА
-            bg_select = st.selectbox("Фон:", [
-                "⬜ Студийный Белый", 
-                "🟦 Студийный Синий (#0668D7)",
-                "🏙️ Улица (Размытая)", 
-                "🌳 Парк (Зелень)", 
-                "🌃 Ночной Город (Киберпанк)"
+            # НОВЫЕ ФОНЫ (Только плоские цвета)
+            bg_select = st.selectbox("Студийный Фон (Без теней):", [
+                "⬜ Белый (Flat White)", 
+                "🟦 Синий Бренд (#0668D7)",
+                "🟧 Оранжевый Бренд (#FF9601)",
+                "⬛ Черный Матовый (Black)"
             ])
             
             aspect = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"])
-            user_input = st.text_area("Детали (например: стоит у столба):", height=80)
+            user_input = st.text_area("Детали (необязательно):", height=80)
             
             submitted = st.form_submit_button("🚀 Сгенерировать", type="primary")
 
     with col2:
-        # ЛОГИКА ГЕНЕРАЦИИ
-        if submitted and user_input:
+        if submitted:
             # 1. Перевод
             try:
                 translator = GoogleTranslator(source='auto', target='en')
-                scene_en = translator.translate(user_input)
+                if user_input:
+                    scene_en = translator.translate(user_input)
+                else:
+                    scene_en = "minimalist studio shot"
             except:
-                scene_en = user_input
+                scene_en = user_input if user_input else "minimalist studio shot"
             
             clean_scene = scene_en.replace("scooter", "").replace("bike", "")
             
-            # 2. Настройка фона (через if/elif)
+            # 2. ПЛОСКИЙ ФОН (Строгие правила)
             if "Белый" in bg_select:
-                bg_prompt = "BACKGROUND: ((Solid White Hex #FFFFFF)). Isolated."
+                bg_prompt = "BACKGROUND: ((Solid Flat White Color Hex #FFFFFF)). ((2D Background)). ((NO SHADOWS)). ((NO GRADIENT)). Isolated."
             elif "Синий" in bg_select:
-                bg_prompt = "BACKGROUND: ((Solid Royal Blue Hex #0668D7)). Minimalist studio backdrop. No shadows."
-            elif "Улица" in bg_select:
-                bg_prompt = "BACKGROUND: Blurred minimalist city street, bokeh, plastic style buildings."
-            elif "Парк" in bg_select:
-                bg_prompt = "BACKGROUND: Minimalist plastic park, abstract green trees, soft sunlight."
-            elif "Ночной" in bg_select:
-                bg_prompt = "BACKGROUND: Dark blue night city, soft neon lights, bokeh, plastic style."
-            else:
-                bg_prompt = "BACKGROUND: ((Solid White Hex #FFFFFF))."
+                bg_prompt = "BACKGROUND: ((Solid Flat Royal Blue Color Hex #0668D7)). ((2D Background)). ((NO SHADOWS)). ((NO GRADIENT))."
+            elif "Оранжевый" in bg_select:
+                bg_prompt = "BACKGROUND: ((Solid Flat Neon Orange Color Hex #FF9601)). ((2D Background)). ((NO SHADOWS)). ((NO GRADIENT))."
+            elif "Черный" in bg_select:
+                bg_prompt = "BACKGROUND: ((Solid Flat Matte Black Color Hex #000000)). ((2D Background)). ((NO SHADOWS)). ((NO GRADIENT))."
 
             # 3. Сборка промпта
             if "Самокат" in mode:
-                # Добавляем контекст скейта
-                scene_context = f"SCENE: {clean_scene}. The object looks like a skateboard with a handle."
+                scene_context = f"SCENE: {clean_scene}. The object has a strict L-shaped silhouette."
                 raw_prompt = f"{STYLE_PREFIX} {SCOOTER_CORE} {scene_context} {COLOR_RULES} {bg_prompt} {STYLE_SUFFIX}"
             elif "Машина" in mode:
                 raw_prompt = f"{STYLE_PREFIX} {CAR_CORE} SCENE: {clean_scene}. {COLOR_RULES} {bg_prompt} {STYLE_SUFFIX}"
@@ -155,32 +166,28 @@ with tab1:
             seed = random.randint(1, 999999)
 
             # 5. Запрос
-            with st.spinner("Генерация..."):
+            with st.spinner("Рендер без теней..."):
                 img_bytes = generate_image(final_prompt, w, h, seed)
             
             if img_bytes == "BUSY":
-                st.warning("Сервер занят (429). Подождите 5 секунд.")
+                st.warning("Сервер занят. Подождите пару секунд.")
             elif img_bytes:
-                # СОХРАНЕНИЕ В ПАМЯТЬ СЕССИИ (чтобы не исчезло)
                 st.session_state.last_image_bytes = img_bytes
                 st.session_state.last_image_size = (w, h)
                 
-                # СОХРАНЕНИЕ НА ДИСК (для галереи)
+                # Сохраняем
                 t_str = datetime.datetime.now().strftime("%H%M%S")
                 fn = f"{t_str}_{seed}_{w}_{h}.png"
                 fp = os.path.join(GALLERY_DIR, fn)
                 
-                with open(fp, "wb") as f: 
-                    f.write(img_bytes)
-                with open(fp + ".txt", "w", encoding="utf-8") as f: 
-                    f.write(final_prompt)
+                with open(fp, "wb") as f: f.write(img_bytes)
+                with open(fp + ".txt", "w", encoding="utf-8") as f: f.write(final_prompt)
                 
-                # Перезагрузка страницы для обновления галереи
                 st.rerun()
             else:
                 st.error("Ошибка сети.")
 
-        # БЛОК ОТОБРАЖЕНИЯ (вне логики кнопки, работает всегда при наличии данных)
+        # ОТОБРАЖЕНИЕ
         if st.session_state.last_image_bytes:
             st.success("Готово!")
             img = Image.open(io.BytesIO(st.session_state.last_image_bytes))
@@ -194,7 +201,6 @@ with tab2:
     else:
         st.write(f"Работ в галерее: {len(files)}")
         cols = st.columns(2)
-        
         for i, filename in enumerate(files):
             fp = os.path.join(GALLERY_DIR, filename)
             tp = fp + ".txt"
@@ -212,50 +218,48 @@ with tab2:
                         st.image(img, use_container_width=True)
                     except: continue
 
-                    # Метки качества (Safe HD)
-                    if rw > 1400:
-                        st.caption(f"💎 **Safe HD** ({rw}x{rh})")
+                    # Статус качества
+                    if rw >= 2000:
+                        st.caption(f"💎 **4K (Upscaled)** | {rw}x{rh}")
                         can_up = False
                     else:
-                        st.caption(f"🔹 Base ({rw}x{rh})")
+                        st.caption(f"🔹 Base | {rw}x{rh}")
                         can_up = True
                     
                     c1, c2, c3 = st.columns([1, 1.5, 0.5])
                     
-                    # Кнопка Скачать
                     with open(fp, "rb") as f:
                         c1.download_button("⬇️", f, filename, "image/png", key=f"d{i}")
                     
-                    # Кнопка Safe Upscale (1536px)
                     if can_up:
-                        if c2.button("✨ HD (Safe)", key=f"u{i}"):
+                        # КНОПКА ГИБРИДНОГО АПСКЕЙЛА
+                        if c2.button("✨ Сделать 2048px", key=f"u{i}"):
                             if os.path.exists(tp):
                                 with open(tp, "r", encoding="utf-8") as f: p = f.read()
                                 
-                                with st.spinner("Улучшаю до 1536px..."):
-                                    # Целимся в 1536px
-                                    hq = generate_image(p, 1536, 1536, seed)
-                                    if hq and hq != "BUSY":
-                                        check = Image.open(io.BytesIO(hq))
-                                        cw, ch = check.size
+                                with st.spinner("Запрос 4K + Smart Resize..."):
+                                    # 1. Просим у сервера честные 2048
+                                    target_w, target_h = 2048, 2048
+                                    hq_bytes = generate_image(p, target_w, target_h, seed)
+                                    
+                                    if hq_bytes and hq_bytes != "BUSY":
+                                        # 2. ПРИНУДИТЕЛЬНЫЙ РЕСАЙЗ ДО 2048
+                                        # (Если сервер вернул 1024, мы сами растянем до 2048)
+                                        final_bytes = smart_resize(hq_bytes, target_w, target_h)
                                         
-                                        if cw < 1400:
-                                            st.warning(f"Сервер не смог выдать HD (прислал {cw}x{ch}).")
-                                        else:
-                                            # Заменяем файл
-                                            n_name = filename.replace(f"_{rw}_{rh}", f"_{cw}_{ch}")
-                                            n_path = os.path.join(GALLERY_DIR, n_name)
-                                            with open(n_path, "wb") as f: f.write(hq)
-                                            shutil.copy(tp, n_path + ".txt")
-                                            
-                                            os.remove(fp)
-                                            os.remove(tp)
-                                            st.rerun()
+                                        # 3. Сохраняем результат который ТОЧНО 2048
+                                        n_name = filename.replace(f"_{rw}_{rh}", f"_{target_w}_{target_h}")
+                                        n_path = os.path.join(GALLERY_DIR, n_name)
+                                        
+                                        with open(n_path, "wb") as f: f.write(final_bytes)
+                                        shutil.copy(tp, n_path + ".txt")
+                                        
+                                        os.remove(fp); os.remove(tp)
+                                        st.rerun()
                                     else:
                                         st.error("Сервер занят.")
                             else: st.error("Нет данных.")
                     
-                    # Кнопка Удалить
                     if c3.button("🗑️", key=f"x{i}"):
                         os.remove(fp)
                         if os.path.exists(tp): os.remove(tp)
