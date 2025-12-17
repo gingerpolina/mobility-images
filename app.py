@@ -11,9 +11,9 @@ import datetime
 # --- CONFIG ---
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
-# Убрали упоминание бренда из заголовка
-st.set_page_config(page_title="Scooter Gen v40", layout="wide", page_icon="🛴")
-st.title("🛴 Scooter Gen v40: Пропорции и Поза")
+# Нейтральное название
+st.set_page_config(page_title="Scooter Gen v41", layout="wide", page_icon="🛴")
+st.title("🛴 Scooter Gen v41: Пропорции и Поза")
 
 if 'last_image_bytes' not in st.session_state: st.session_state.last_image_bytes = None
 if 'last_image_size' not in st.session_state: st.session_state.last_image_size = (0, 0)
@@ -22,7 +22,7 @@ if 'last_image_size' not in st.session_state: st.session_state.last_image_size =
 try: from deep_translator import GoogleTranslator; HAS_TRANSLATOR = True
 except ImportError: HAS_TRANSLATOR = False
 
-# --- PROMPT CONSTANTS ---
+# --- PROMPT CONSTANTS (BASE v39) ---
 STYLE_PREFIX = "((NO REALISM)). 3D minimalist product render. Style: Matte plastic textures, smooth rounded shapes, soft studio lighting, ambient occlusion. Aesthetic: Playful, modern, high fidelity, C4D style, Octane render."
 STYLE_SUFFIX = "High quality 3D render. 4k resolution."
 
@@ -33,7 +33,7 @@ COMPOSITION_RULES = "VIEW: Long shot (Full Body). COMPOSITION: The Main Object, 
 SCOOTER_CORE = "MAIN OBJECT: Modern Electric Kick Scooter. DESIGN: 1. Tall vertical Blue tube (Steering stem) with T-handlebars. 2. Wide, seamless, low-profile unibody standing deck (Snow White). 3. Small minimalist wheels partially enclosed. SHAPE: Sleek, integrated, geometric L-shape. ((NO SEAT))."
 CAR_CORE = "MAIN OBJECT: Cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 COLOR_RULES = "COLORS: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
-NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, levitation, hovering feet, jumping, tiny character, giant scooter"
+NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, levitation, hovering feet, jumping, tiny character"
 
 # --- FUNCTIONS ---
 def make_request_with_retry(url, max_retries=3):
@@ -75,4 +75,20 @@ with tab1:
             passenger_input = st.text_input("👤 Пассажир:", placeholder="Например: Кот...")
             st.divider()
             # Нейтральные названия цветов
-            color_theme = st.selectbox("🎨 Окружение
+            color_theme = st.selectbox("🎨 Окружение:", ["🟦 Royal Blue", "⬜ Flat White", "🟧 Neon Orange", "🎨 Natural", "⬛ Matte Black"])
+            env_input = st.text_area("🌳 Детали окружения:", height=80)
+            aspect = st.selectbox("Формат:", ["1:1", "16:9", "9:16"])
+            submitted = st.form_submit_button("🚀 Сгенерировать", type="primary")
+
+    with col2:
+        if submitted:
+            env_en = translate_text(env_input) if env_input else ""
+            pass_en = translate_text(passenger_input) if passenger_input else ""
+
+            # --- ИСПРАВЛЕННАЯ ЛОГИКА (V41 - TOY BODY + SCALE + STANCE) ---
+            if pass_en:
+                if "Самокат" in mode:
+                    passenger_prompt = (
+                        "RIDER: A cute 3D plastic toy character of " + pass_en + ". " +
+                        # 1. ТЕЛО (ИЗ V39)
+                        "BODY
