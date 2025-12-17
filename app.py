@@ -5,26 +5,19 @@ import io
 import urllib.parse
 from deep_translator import GoogleTranslator
 
-# --- ГЛОБАЛЬНЫЙ СТИЛЬ (ПРИМЕНЯЕТСЯ КО ВСЕМУ) ---
-# Описываем только визуальный стиль, цвета и фон. Без конкретного объекта.
+# --- НАСТРОЙКИ СТИЛЯ ---
 GLOBAL_STYLE = """
 STYLE: 3D minimalist illustration, claymorphism style, matte plastic texture, smooth rounded shapes, soft studio lighting. High resolution, rendered in Blender.
 COLOR PALETTE: Predominantly Soft Whites (#EAF0F9) and Blue (#0668D7), with Accent Orange (#FF9601).
 BACKGROUND: Isolated on a COMPLETELY FLAT, SOLID single color background (Soft White). NO shadows on background, no gradients.
 """
 
-# --- СПЕЦИАЛЬНЫЕ ПРАВИЛА ДЛЯ САМОКАТОВ ---
-SCOOTER_RULES = """
-OBJECT SPECIFICS: Modern electric kick scooter. Must have battery in the floor deck. NO seats. NO mirrors. NO logos. Minimalist design.
-"""
+# Жесткий негативный промпт: запрещаем мопеды и сиденья
+NEGATIVE_PROMPT = "seat, saddle, vespa, moped, motorcycle, engine, exhaust, photorealistic, realistic, dark, gloomy, low quality, pixelated, text, watermark, complex background, shadow on wall"
 
-NEGATIVE_PROMPT = "photorealistic, realistic, dark, gloomy, low quality, pixelated, text, watermark, complex background, shadow on wall, gradient background"
-
-# -----------------------------------------------------
-
-st.set_page_config(page_title="Universal 3D Generator", layout="centered", page_icon="🎨")
-st.title("🎨 Универсальный 3D Генератор (Auto-Translate)")
-st.caption("Пишите на русском. Если это самокат — применяются правила бренда.")
+st.set_page_config(page_title="Universal 3D Generator", layout="centered", page_icon="🛴")
+st.title("🎨 Универсальный 3D Генератор (Smart Fix)")
+st.caption("Исправлена проблема 'скутер вместо самоката'. Пишите на русском.")
 
 with st.form("prompt_form"):
     user_input = st.text_area("Что изобразить?", value="Электросамокат стоит под новогодней елкой", height=100)
@@ -41,31 +34,38 @@ with st.form("prompt_form"):
     submit = st.form_submit_button("✨ Сгенерировать")
 
 if submit and user_input:
-    st.info("Перевожу запрос и генерирую...")
+    st.info("Перевожу и корректирую запрос...")
     
     try:
-        # 1. АВТОМАТИЧЕСКИЙ ПЕРЕВОД (RU -> EN)
+        # 1. ПЕРЕВОД (RU -> EN)
         translator = GoogleTranslator(source='auto', target='en')
-        translated_prompt = translator.translate(user_input)
+        translated_text = translator.translate(user_input)
         
-        # Показываем пользователю, как перевелось (для контроля)
-        st.caption(f"🇬🇧 Перевод для нейросети: *{translated_prompt}*")
+        # 2. УМНАЯ КОРРЕКЦИЯ ТЕРМИНОВ
+        # Если пользователь написал "самокат" (scooter), мы уточняем, что это НЕ мопед.
+        # Мы заменяем "scooter" на "stand-up kick scooter" (стоячий самокат)
         
-        # 2. УМНАЯ ЛОГИКА
-        # Проверяем, есть ли слово "scooter" в переводе
-        final_object_prompt = translated_prompt
+        final_text = translated_text
         
-        if "scooter" in translated_prompt.lower():
-            # Если это самокат, добавляем жесткие правила бренда
-            full_prompt = f"{GLOBAL_STYLE} {SCOOTER_RULES} SCENE: {translated_prompt}. {NEGATIVE_PROMPT}"
-            st.toast("🛴 Обнаружен самокат! Применены правила бренда (без сиденья, батарея в деке).")
-        else:
-            # Если это что-то другое, просто применяем стиль
-            full_prompt = f"{GLOBAL_STYLE} OBJECT: {translated_prompt}. {NEGATIVE_PROMPT}"
+        if "scooter" in translated_text.lower():
+            final_text = translated_text.replace("scooter", "modern stand-up electric kick scooter")
+            final_text = final_text.replace("electric electric", "electric") # убираем возможные повторы
+            
+            st.toast("🔧 Исправлено: 'Scooter' заменено на 'Kick Scooter' (без сиденья).")
         
-        # 3. Отправка запроса
+        st.caption(f"🇬🇧 Итоговый запрос к нейросети: *{final_text}*")
+
+        # 3. СБОРКА ПРОМПТА
+        # Важно: Сначала стиль, потом ВАШ текст (с елкой), потом негативный промпт.
+        full_prompt = f"{GLOBAL_STYLE} SCENE: {final_text}. Make sure the scooter has NO SEAT. {NEGATIVE_PROMPT}"
+        
+        # 4. ОТПРАВКА
         encoded_prompt = urllib.parse.quote(full_prompt)
-        url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false"
+        # seed случайный, чтобы картинки были разными каждый раз
+        import random
+        seed = random.randint(1, 10000)
+        
+        url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
         
         response = requests.get(url, timeout=60)
         
@@ -79,7 +79,7 @@ if submit and user_input:
             st.download_button(
                 label="⬇️ Скачать PNG",
                 data=image_data,
-                file_name="generated_3d.png",
+                file_name="fixed_scooter.png",
                 mime="image/png"
             )
         else:
