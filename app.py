@@ -36,8 +36,8 @@ NEGATIVE_PROMPT = "photo, realistic, metal, chrome, seat, saddle, motorcycle, sc
 
 # -----------------------------------------------------
 
-st.set_page_config(page_title="Gen 14.1 (Fixed)", layout="wide", page_icon="✨")
-st.title("✨ Генератор 14.1: Исправленный")
+st.set_page_config(page_title="Gen 14.2 (Final)", layout="wide", page_icon="✨")
+st.title("✨ Генератор 14.2: Исправленный")
 
 # --- ФУНКЦИЯ ГЕНЕРАЦИИ ---
 def generate_image(prompt, width, height, seed, model='flux'):
@@ -61,10 +61,13 @@ tab1, tab2 = st.tabs(["🎨 Генератор", "📂 Галерея"])
 with tab1:
     col1, col2 = st.columns([1, 2])
     with col1:
-        mode = st.radio("Тип объекта:", ["🛴 Самокат (Urent)", "🚗 Машина", "📦 Другое"])
-        aspect = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"])
-        user_input = st.text_area("Окружение:", value="стоит рядом с уличным фонарем", height=100)
-        submit = st.form_submit_button("🚀 Сгенерировать", type="primary")
+        # ОБРАТИТЕ ВНИМАНИЕ: Я обернул вводы в st.form, чтобы все работало корректно
+        with st.form("gen_form"):
+            mode = st.radio("Тип объекта:", ["🛴 Самокат (Urent)", "🚗 Машина", "📦 Другое"])
+            aspect = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"])
+            user_input = st.text_area("Окружение:", value="стоит рядом с уличным фонарем", height=100)
+            # Теперь кнопка внутри формы, как и положено
+            submit = st.form_submit_button("🚀 Сгенерировать", type="primary")
 
     with col2:
         if submit and user_input:
@@ -94,7 +97,7 @@ with tab1:
                 img_bytes = generate_image(final_prompt, w, h, seed)
 
             if img_bytes == "BUSY":
-                st.warning("Сервер перегружен. Нажмите еще раз.")
+                st.warning("Сервер перегружен. Нажмите кнопку еще раз.")
             elif img_bytes:
                 image = Image.open(io.BytesIO(img_bytes))
                 st.image(image, caption=f"Результат ({w}x{h})", use_container_width=True)
@@ -114,7 +117,7 @@ with tab1:
                 time.sleep(1)
                 st.rerun()
 
-# === 2. ГАЛЕРЕЯ (ИСПРАВЛЕННАЯ ЛОГИКА) ===
+# === 2. ГАЛЕРЕЯ ===
 with tab2:
     files = sorted([f for f in os.listdir(GALLERY_DIR) if f.endswith(".png")], reverse=True)
     
@@ -128,7 +131,7 @@ with tab2:
             filepath = os.path.join(GALLERY_DIR, filename)
             txt_path = filepath + ".txt"
             
-            # Читаем параметры из имени файла
+            # Читаем параметры
             try:
                 parts = filename.replace(".png", "").split("_")
                 seed = int(parts[1])
@@ -139,56 +142,4 @@ with tab2:
                 seed = 0; width = 1024; is_4k = False
 
             with cols[i % 2]:
-                with st.container(border=True):
-                    # Открываем картинку (БЕЗ ГИГАНТСКОГО TRY/EXCEPT)
-                    try:
-                        img = Image.open(filepath)
-                        st.image(img, use_container_width=True)
-                    except Exception as e:
-                        st.error(f"Ошибка чтения файла: {filename}")
-                        continue # Пропускаем остальное, если файл битый
-
-                    # Подписи и Кнопки
-                    if is_4k:
-                        st.caption(f"💎 **Ultra HD** | {width}x{height}")
-                    else:
-                        st.caption(f"🔹 Standard | {width}x{height}")
-                    
-                    c1, c2 = st.columns(2)
-                    
-                    # Кнопка СКАЧАТЬ
-                    with open(filepath, "rb") as f:
-                        c1.download_button("⬇️ Скачать", f, filename, "image/png", key=f"dl_{filename}")
-
-                    # Кнопка УЛУЧШИТЬ
-                    if not is_4k:
-                        if c2.button("✨ В 4K", key=f"up_{filename}"):
-                            if os.path.exists(txt_path):
-                                with open(txt_path, "r", encoding="utf-8") as f:
-                                    saved_prompt = f.read()
-                                
-                                with st.spinner("⏳ Делаю 4K (40 сек)..."):
-                                    new_w, new_h = width * 2, height * 2
-                                    hq_bytes = generate_image(saved_prompt, new_w, new_h, seed)
-                                    
-                                    if hq_bytes and hq_bytes != "BUSY":
-                                        # Замена файла
-                                        new_name = filename.replace(f"_{width}_{height}", f"_{new_w}_{new_h}")
-                                        new_path = os.path.join(GALLERY_DIR, new_name)
-                                        
-                                        with open(new_path, "wb") as f: f.write(hq_bytes)
-                                        shutil.copy(txt_path, new_path + ".txt")
-                                        
-                                        os.remove(filepath)
-                                        os.remove(txt_path)
-                                        st.rerun()
-                                    else:
-                                        st.error("Сервер занят, попробуйте позже.")
-                            else:
-                                st.error("Нет файла промпта.")
-                    
-                    # Кнопка УДАЛИТЬ
-                    if st.button("🗑️ Удалить", key=f"del_{filename}"):
-                        os.remove(filepath)
-                        if os.path.exists(txt_path): os.remove(txt_path)
-                        st.rerun()
+                with st
