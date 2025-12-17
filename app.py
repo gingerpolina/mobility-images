@@ -11,8 +11,8 @@ import datetime
 # --- CONFIG ---
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
-st.set_page_config(page_title="Urent Gen v36 (Grip Fix)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v36: Держимся за Руль")
+st.set_page_config(page_title="Urent Gen v37 (Physics Fix)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v37: Физика и Хват")
 
 if 'last_image_bytes' not in st.session_state: st.session_state.last_image_bytes = None
 if 'last_image_size' not in st.session_state: st.session_state.last_image_size = (0, 0)
@@ -32,7 +32,7 @@ COMPOSITION_RULES = "VIEW: Long shot (Full Body). COMPOSITION: The Main Object, 
 SCOOTER_CORE = "MAIN OBJECT: Modern Electric Kick Scooter. DESIGN: 1. Tall vertical Blue tube (Steering stem) with T-handlebars. 2. Wide, seamless, low-profile unibody standing deck (Snow White). 3. Small minimalist wheels partially enclosed. SHAPE: Sleek, integrated, geometric L-shape. ((NO SEAT))."
 CAR_CORE = "MAIN OBJECT: Cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 COLOR_RULES = "COLORS: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
-NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark"
+NEGATIVE_PROMPT = "realistic, photo, grain, noise, dirt, grunge, metal reflection, seat, saddle, chair, bench, sitting, kneeling, four legs, crawling, moped, motorcycle, cut off, cropped, text, watermark, hovering feet, levitation"
 
 # --- FUNCTIONS ---
 def make_request_with_retry(url, max_retries=3):
@@ -83,22 +83,23 @@ with tab1:
             env_en = translate_text(env_input) if env_input else ""
             pass_en = translate_text(passenger_input) if passenger_input else ""
 
-            # --- ИСПРАВЛЕННАЯ ЛОГИКА ПАССАЖИРА (v36) ---
+            # --- ИСПРАВЛЕННАЯ ЛОГИКА (V37 - CONTACT POINTS) ---
             if pass_en:
                 if "Самокат" in mode:
-                    # Добавлены инструкции: Grip, Arms extended, Steering
+                    # Мы используем строгие точки контакта
                     passenger_prompt = (
-                        "RIDER: A cute 3D plastic toy character of " + pass_en + 
-                        ", ANTHROPOMORPHIC, STANDING upright on two hind legs on the flat deck. " +
-                        "ARMS EXTENDED. HANDS/PAWS FIRMLY GRIPPING THE T-HANDLEBARS. " + 
-                        "The character is steering the scooter. " +
-                        "POSE: Standing human-like posture, holding the handles. NOT sitting."
+                        "RIDER: A cute 3D plastic toy character of " + pass_en + ". " +
+                        "BODY: Anthropomorphic, standing on hind legs. " +
+                        "CONTACT POINTS: 1. Feet are FLAT and PLANTED FIRMLY on the scooter deck (No hovering). " +
+                        "2. Arms are reached out forward. " +
+                        "3. Paws are PHYSICALLY WRAPPED AROUND the handlebar grips. " +
+                        "POSE: Leaning forward slightly to steer. Driving stance. NOT sitting."
                     )
                 else:
                     passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + "."
             else:
                 passenger_prompt = "No rider. Empty flat deck. ((NO SEAT))."
-            # -------------------------------------------
+            # ----------------------------------------------------
 
             if "Blue" in color_theme: bg_data = "BACKGROUND: Seamless Royal Blue Studio Cyclorama #0668D7. Uniform background. ENV MATERIAL: Matte Blue Plastic."
             elif "Orange" in color_theme: bg_data = "BACKGROUND: Seamless Neon Orange Studio Cyclorama #FF9601. Uniform background. ENV MATERIAL: Matte Orange Plastic."
@@ -139,3 +140,40 @@ with tab1:
             st.image(Image.open(io.BytesIO(st.session_state.last_image_bytes)), caption="Результат")
 
 # Gallery Code (Standard)
+with tab2:
+    files = sorted([f for f in os.listdir(GALLERY_DIR) if f.endswith(".png")], reverse=True)
+    if not files: st.info("Пусто.")
+    else:
+        st.write(f"Всего: {len(files)}")
+        cols = st.columns(2)
+        for i, filename in enumerate(files):
+            fp = os.path.join(GALLERY_DIR, filename)
+            tp = fp + ".txt"
+            with cols[i % 2]:
+                with st.container(border=True):
+                    try: img = Image.open(fp); st.image(img)
+                    except: continue
+                    c1, c2, c3 = st.columns([1, 1.5, 0.5])
+                    with open(fp, "rb") as f: c1.download_button("⬇️", f, filename)
+                    rw, rh = img.size
+                    if rw < 2000:
+                        if c2.button("✨ 2048px", key=f"u{i}"):
+                            if os.path.exists(tp):
+                                with open(tp, "r", encoding="utf-8") as f: p = f.read()
+                                st.toast("⏳ Улучшаем...")
+                                try: old_seed = int(filename.split("_")[1])
+                                except: old_seed = random.randint(1, 99999)
+                                hq = generate_image(p, 2048, 2048, old_seed)
+                                if hq:
+                                    final = smart_resize(hq, 2048, 2048)
+                                    n_path = os.path.join(GALLERY_DIR, filename.replace(f"_{rw}_{rh}", "_2048_2048"))
+                                    with open(n_path, "wb") as f: f.write(final)
+                                    with open(n_path + ".txt", "w", encoding="utf-8") as f: f.write(p)
+                                    os.remove(fp); os.remove(tp)
+                                    st.rerun()
+                                else: st.error("Сервер занят")
+                            else: st.error("Нет промпта")
+                    if c3.button("🗑️", key=f"x{i}"):
+                        os.remove(fp); 
+                        if os.path.exists(tp): os.remove(tp)
+                        st.rerun()
