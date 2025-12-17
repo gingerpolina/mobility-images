@@ -7,77 +7,82 @@ from deep_translator import GoogleTranslator
 import random
 import time
 
-# --- НАСТРОЙКИ (АГРЕССИВНЫЙ СТИЛЬ) ---
+# --- НАСТРОЙКИ СТИЛЯ (MAXIMUM PLASTIC) ---
 
-# Мы используем скобки (( )) для усиления внимания нейросети
+# 1. ГЛАВНЫЙ СТИЛЬ: Заставляем все выглядеть как 3D-иконку, а не фото.
 STYLE_HEADER = """
-((3D Claymorphism Icon)), ((Isometric View)). 
-Everything is made of smooth matte plastic. Toy-like proportions. Minimalist shapes.
-Lighting: Soft studio lighting, ambient occlusion.
+((3D Render)), ((Claymorphism Style)), ((Cute 3D Icon)).
+MATERIAL: ((Matte Plastic)), ((Soft Rubber)), ((Play-Doh)).
+SHAPES: ((Smooth)), ((Rounded)), ((Bubble-like)), ((Geometric)), ((Minimalist)).
+DETAILS: Low detail, no textures, no noise.
 """
 
-# Жесткое требование к фону
-BACKGROUND_RULE = "Background: ((SOLID WHITE COLOR)), ((ISOLATED)), ((NO SHADOWS ON WALL))."
+# 2. ФОН: Жестко белый, без углов комнаты.
+BACKGROUND_RULE = """
+BACKGROUND: ((PURE WHITE HEX #FFFFFF)), ((FLAT 2D)), ((ISOLATED)). 
+LIGHTING: Soft studio lighting from top-left. NO CAST SHADOWS.
+"""
 
-# Цвета (без розового!)
+# 3. ЦВЕТА
 COLOR_RULES = """
-COLORS: Main object is Snow White (#EAF0F9) and Royal Blue (#0668D7). 
-Accents are Orange (#FF9601).
-FORBIDDEN: ((NO PINK)), ((NO PURPLE)), ((NO REALISM)), ((NO TEXTURE)).
+PALETTE:
+- Main Object: Snow White (#EAF0F9) & Royal Blue (#0668D7).
+- Accents: Orange (#FF9601).
+FORBIDDEN: ((Pink)), ((Purple)), ((Realism)), ((Dirt)).
 """
 
-# Анатомия самоката (без сиденья)
-SCOOTER_CORE = "OBJECT: A cute miniature Electric Kickboard (scooter). Vertical stem, flat deck. ((NO SEAT))."
+# 4. ОБЪЕКТЫ
+SCOOTER_CORE = "OBJECT: A cute stylized Electric Kickboard (scooter). Vertical stem, flat deck. ((NO SEAT))."
+CAR_CORE = "OBJECT: A cute stylized White Sedan car with blue stripes."
 
-# Анатомия машины
-CAR_CORE = "OBJECT: A cute miniature White Sedan car with blue stripes."
-
-# Негативный промпт (Мусор)
-NEGATIVE_PROMPT = "photo, realistic, 8k, detailed texture, wood, fur, needles, pink, magenta, room, floor, wall, interior, dark, shadow, noise, grain"
+# 5. НЕГАТИВНЫЙ ПРОМПТ (Убиваем комнату и текстуры)
+NEGATIVE_PROMPT = """
+room, wall, floor, corner, architecture, interior,
+photorealistic, 8k, photography, 
+texture, fur, needles, hair, grain, noise,
+shadow, ambient occlusion, dark,
+pink, magenta, purple
+"""
 
 # -----------------------------------------------------
 
-st.set_page_config(page_title="Brand Gen 4.0 (Style Fix)", layout="centered", page_icon="🎨")
-st.title("🎨 Генератор 4.0: Принудительный стиль")
-st.caption("Теперь стиль 'Claymorphism' применяется с двойной силой.")
+st.set_page_config(page_title="Brand Gen 5.0 (Final Polish)", layout="centered", page_icon="🎨")
+st.title("🎨 Генератор 5.0: Гладкий пластик")
+st.caption("Исправлено: фон теперь идеально белый (без стен), елки — гладкие (без иголок).")
 
-# Настройки
 with st.sidebar:
-    use_turbo = st.checkbox("Turbo-режим (быстрее)", value=False)
+    use_turbo = st.checkbox("Turbo-режим", value=False)
     model = "turbo" if use_turbo else "flux"
 
 mode = st.radio("Тип объекта:", ["🛴 Самокат", "🚗 Машина", "📦 Другое"], horizontal=True)
 
 with st.form("prompt_form"):
-    # Подсказка пользователю
-    user_input = st.text_area("Окружение (например: стоит рядом с елкой)", value="стоит рядом с елкой", height=80)
+    user_input = st.text_area("Окружение:", value="стоит рядом с елкой", height=80)
     size_option = st.selectbox("Формат:", ["1:1", "16:9", "9:16"], index=0)
     submit = st.form_submit_button("✨ Сгенерировать")
 
 if submit and user_input:
-    st.info("Применяю магию пластика...")
+    st.info("Леплю из цифрового пластилина...")
     
     try:
         # 1. Перевод
         translator = GoogleTranslator(source='auto', target='en')
         scene_en = translator.translate(user_input)
         
-        # 2. ТРЮК: ПРЕВРАЩАЕМ СЦЕНУ В ИГРУШКУ
-        # Вместо "Tree" отправляем "Toy minimal plastic tree"
-        toy_scene = f"minimalist plastic toy version of {scene_en}"
+        # 2. ТРАНСФОРМАЦИЯ СЦЕНЫ (Самое важное!)
+        # Превращаем "Елку" в "Абстрактную геометрическую форму"
+        stylized_scene = f"abstract smooth geometric 3d version of {scene_en}, made of smooth matte plastic, rounded edges"
         
         # 3. СБОРКА ПРОМПТА
         if "Самокат" in mode:
-            # Убираем слово scooter из сцены, чтобы не сбивать анатомию
-            safe_scene = toy_scene.replace("scooter", "").replace("bike", "")
-            final_prompt = f"{STYLE_HEADER} {SCOOTER_CORE} SCENE: {safe_scene}. {COLOR_RULES} {BACKGROUND_RULE} {STYLE_HEADER}" 
-            # ^ Дублируем стиль в конце для надежности
+            safe_scene = stylized_scene.replace("scooter", "").replace("bike", "")
+            final_prompt = f"{STYLE_HEADER} {SCOOTER_CORE} SCENE: {safe_scene}. {COLOR_RULES} {BACKGROUND_RULE}"
             
         elif "Машина" in mode:
-            final_prompt = f"{STYLE_HEADER} {CAR_CORE} SCENE: {toy_scene}. {COLOR_RULES} {BACKGROUND_RULE}"
+            final_prompt = f"{STYLE_HEADER} {CAR_CORE} SCENE: {stylized_scene}. {COLOR_RULES} {BACKGROUND_RULE}"
             
         else:
-            final_prompt = f"{STYLE_HEADER} OBJECT: {toy_scene}. {COLOR_RULES} {BACKGROUND_RULE}"
+            final_prompt = f"{STYLE_HEADER} OBJECT: {stylized_scene}. {COLOR_RULES} {BACKGROUND_RULE}"
         
         # Добавляем негативный промпт
         final_prompt += f" --no {NEGATIVE_PROMPT}"
@@ -87,9 +92,10 @@ if submit and user_input:
         encoded_prompt = urllib.parse.quote(final_prompt)
         seed = random.randint(1, 99999)
         
+        # enhance=false ОБЯЗАТЕЛЬНО, иначе он сам дорисует реалистичные текстуры
         url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model={model}&nologo=true&enhance=false&seed={seed}"
         
-        # Попытка запроса (с ретраем)
+        # Запрос с повтором
         response = requests.get(url, timeout=60)
         if response.status_code != 200:
             time.sleep(2)
@@ -99,14 +105,14 @@ if submit and user_input:
             image_data = response.content
             image = Image.open(io.BytesIO(image_data))
             st.success("Готово!")
-            st.image(image, caption="Результат", use_container_width=True)
+            st.image(image, caption="Результат (Стиль: Matte Plastic)", use_container_width=True)
             
-            with st.expander("🕵️ Что реально увидела нейросеть?"):
+            with st.expander("Как мы описали это для нейросети?"):
                 st.write(final_prompt)
                 
-            st.download_button("Скачать PNG", image_data, "brand_style.png", "image/png")
+            st.download_button("Скачать PNG", image_data, "brand_final.png", "image/png")
         else:
-            st.error("Ошибка сервера. Попробуйте еще раз или включите Turbo.")
+            st.error("Ошибка сервера. Попробуйте еще раз.")
 
     except Exception as e:
         st.error(f"Ошибка: {e}")
