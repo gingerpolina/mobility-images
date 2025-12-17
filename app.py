@@ -11,8 +11,8 @@ import datetime
 # --- CONFIG ---
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
-st.set_page_config(page_title="Urent Gen v35 (Director's Cut)", layout="wide", page_icon="🛴")
-st.title("🛴 Urent Gen v35: Антропоморфный & Циклорама")
+st.set_page_config(page_title="Urent Gen v36 (Grip Fix)", layout="wide", page_icon="🛴")
+st.title("🛴 Urent Gen v36: Держимся за Руль")
 
 if 'last_image_bytes' not in st.session_state: st.session_state.last_image_bytes = None
 if 'last_image_size' not in st.session_state: st.session_state.last_image_size = (0, 0)
@@ -25,10 +25,10 @@ except ImportError: HAS_TRANSLATOR = False
 STYLE_PREFIX = "((NO REALISM)). 3D minimalist product render. Style: Matte plastic textures, smooth rounded shapes, soft studio lighting, ambient occlusion. Aesthetic: Playful, modern, high fidelity, C4D style, Octane render."
 STYLE_SUFFIX = "High quality 3D render. 4k resolution."
 
-# UPDATED COMPOSITION: GROUP FRAMING
+# GROUP FRAMING
 COMPOSITION_RULES = "VIEW: Long shot (Full Body). COMPOSITION: The Main Object, the Rider, and the Environmental Props are GROUPED together in the center. MARGINS: Leave 20% empty background padding around this ENTIRE GROUP. Ensure trees and props are NOT cut off. Zoom out."
 
-# UPDATED ANATOMY: UNIBODY
+# UNIBODY ANATOMY
 SCOOTER_CORE = "MAIN OBJECT: Modern Electric Kick Scooter. DESIGN: 1. Tall vertical Blue tube (Steering stem) with T-handlebars. 2. Wide, seamless, low-profile unibody standing deck (Snow White). 3. Small minimalist wheels partially enclosed. SHAPE: Sleek, integrated, geometric L-shape. ((NO SEAT))."
 CAR_CORE = "MAIN OBJECT: Cute chunky autonomous white sedan car, blue branding stripe, smooth plastic body."
 COLOR_RULES = "COLORS: Matte Snow White Body, Royal Blue Stem (#0668D7), Neon Orange Accents (#FF9601). NO PINK."
@@ -83,16 +83,23 @@ with tab1:
             env_en = translate_text(env_input) if env_input else ""
             pass_en = translate_text(passenger_input) if passenger_input else ""
 
-            # 1. PASSENGER LOGIC (ANTHROPOMORPHIC STANDING)
+            # --- ИСПРАВЛЕННАЯ ЛОГИКА ПАССАЖИРА (v36) ---
             if pass_en:
                 if "Самокат" in mode:
-                    passenger_prompt = "RIDER: A cute 3D plastic toy character of " + pass_en + ", ANTHROPOMORPHIC, STANDING upright on two hind legs on the flat deck. Hands holding the handlebars. POSE: Standing human-like posture. NOT sitting."
+                    # Добавлены инструкции: Grip, Arms extended, Steering
+                    passenger_prompt = (
+                        "RIDER: A cute 3D plastic toy character of " + pass_en + 
+                        ", ANTHROPOMORPHIC, STANDING upright on two hind legs on the flat deck. " +
+                        "ARMS EXTENDED. HANDS/PAWS FIRMLY GRIPPING THE T-HANDLEBARS. " + 
+                        "The character is steering the scooter. " +
+                        "POSE: Standing human-like posture, holding the handles. NOT sitting."
+                    )
                 else:
                     passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + "."
             else:
                 passenger_prompt = "No rider. Empty flat deck. ((NO SEAT))."
+            # -------------------------------------------
 
-            # 2. BACKGROUND LOGIC (SEAMLESS CYCLORAMA)
             if "Blue" in color_theme: bg_data = "BACKGROUND: Seamless Royal Blue Studio Cyclorama #0668D7. Uniform background. ENV MATERIAL: Matte Blue Plastic."
             elif "Orange" in color_theme: bg_data = "BACKGROUND: Seamless Neon Orange Studio Cyclorama #FF9601. Uniform background. ENV MATERIAL: Matte Orange Plastic."
             elif "White" in color_theme: bg_data = "BACKGROUND: Seamless Flat White Studio Cyclorama. Uniform background. ENV MATERIAL: Matte White Plastic."
@@ -130,3 +137,5 @@ with tab1:
 
         if st.session_state.last_image_bytes:
             st.image(Image.open(io.BytesIO(st.session_state.last_image_bytes)), caption="Результат")
+
+# Gallery Code (Standard)
