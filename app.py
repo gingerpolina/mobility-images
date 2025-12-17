@@ -1,63 +1,46 @@
 import streamlit as st
 import requests
-from PIL import Image, ImageOps
+from PIL import Image
 import io
 import urllib.parse
 from deep_translator import GoogleTranslator
 import random
 
-# --- ССЫЛКА ПО УМОЛЧАНИЮ (Ninebot Max, ч/б) ---
-# Если вы ничего не загрузите, будет использован этот "чистый" самокат такой же формы
-DEFAULT_CONTROL_URL = "https://i.imgur.com/1p7qJ7z.png" # Пример силуэта
-
-# --- НАСТРОЙКИ СТИЛЯ ---
-GLOBAL_STYLE = """
-STYLE: 3D minimalist illustration, claymorphism style, matte plastic texture, smooth rounded shapes, soft studio lighting. High resolution.
-COLOR PALETTE: Predominantly Soft Whites (#EAF0F9) and Blue (#0668D7), with Accent Orange (#FF9601) details.
-BACKGROUND: Isolated on a COMPLETELY FLAT, SOLID single color background (Soft White). NO shadows, no gradients.
+# --- 1. АНАТОМИЯ САМОКАТА (ЖЕСТКИЙ КАРКАС) ---
+# Мы описываем форму словами так, чтобы исключить мопед.
+# L-shaped = Г-образная форма. T-bar = Т-образный руль. Flat deck = Плоская дека.
+SCOOTER_ANATOMY = """
+OBJECT: A modern electric KICK SCOOTER (stand-up type).
+SHAPE RULES: The object has a strict L-shaped silhouette.
+1. Vertical stem (steering column) with a simple T-bar handlebar at the top.
+2. Flat horizontal floorboard (deck) at the bottom for standing.
+3. Two small wheels (one front, one back).
+4. NO SEAT. NO SADDLE. The user stands on the deck.
 """
 
-NEGATIVE_PROMPT = "purple, violet, lilac, seat, saddle, vespa, moped, motorcycle, engine, photorealistic, realistic, low quality, text, watermark, shadow on wall, complex background"
+# --- 2. СТИЛЬ И ЦВЕТА ---
+GLOBAL_STYLE = """
+VISUAL STYLE: 3D claymorphism render, matte plastic material, soft rounded edges, friendly studio lighting, minimalism.
+COLORS: Main body is White (#EAF0F9) and Blue (#0668D7). Wheels are Black. Small accents are Orange (#FF9601).
+BACKGROUND: Isolated on a solid flat Soft White background.
+"""
 
-st.set_page_config(page_title="Universal 3D Generator", layout="centered", page_icon="🛴")
-st.title("🎨 3D Генератор + Ваш Референс")
-st.caption("Загрузите картинку самоката, и нейросеть возьмет с неё форму (игнорируя цвет).")
+# --- 3. НЕГАТИВНЫЙ ПРОМПТ (ЧТО ЗАПРЕЩЕНО) ---
+# Сюда добавил запрет на фиолетовый и усиленный запрет на сиденья
+NEGATIVE_PROMPT = """
+purple, violet, lilac, pink, 
+seat, saddle, chair, bench, 
+vespa, moped, scooter with seat, motorcycle, motorbike,
+combustion engine, exhaust pipe, 
+complex background, realistic photo, noise, grunge, text, watermark
+"""
 
-# --- БОКОВАЯ ПАНЕЛЬ ДЛЯ ЗАГРУЗКИ ---
-with st.sidebar:
-    st.header("1. Загрузка референса")
-    uploaded_file = st.file_uploader("Перетащите сюда скриншот самоката", type=["png", "jpg", "jpeg"])
-    
-    control_url = DEFAULT_CONTROL_URL
-    
-    if uploaded_file is not None:
-        try:
-            # 1. Открываем и удаляем цвет (делаем Ч/Б)
-            img = Image.open(uploaded_file).convert("L") # L = Grayscale
-            st.image(img, caption="Ваш референс (цвет удален)", use_container_width=True)
-            
-            # 2. Сохраняем в память
-            byte_io = io.BytesIO()
-            img.save(byte_io, "PNG")
-            byte_io.seek(0)
-            
-            # 3. Трюк: Загружаем на временный хостинг (file.io), чтобы получить URL для нейросети
-            # Pollinations нужен публичный URL, он не видит файлы на вашем компьютере.
-            with st.spinner("Подготовка референса..."):
-                files = {'file': ('ref.png', byte_io, 'image/png')}
-                # Используем file.io (хранит файл 14 дней или до 1 скачивания)
-                r = requests.post('https://file.io/?expires=1d', files=files)
-                if r.status_code == 200:
-                    control_url = r.json()['link']
-                    st.success("Референс обработан!")
-                else:
-                    st.error("Не удалось обработать файл. Будет использован стандартный.")
-        except Exception as e:
-            st.error(f"Ошибка обработки: {e}")
+st.set_page_config(page_title="Correct 3D Scooter", layout="centered", page_icon="🛴")
+st.title("🛴 Генератор: Правильная форма")
+st.caption("Форма самоката жестко описана геометрически (Г-образная рама).")
 
-# --- ОСНОВНАЯ ФОРМА ---
 with st.form("prompt_form"):
-    user_input = st.text_area("Что изобразить?", value="Электросамокат стоит рядом с новогодней елкой с подарками", height=100)
+    user_input = st.text_area("Детали сцены (где стоит самокат?):", value="стоит рядом с новогодней елкой", height=100)
     
     size_option = st.selectbox("Формат:", ["1:1 (Квадрат)", "16:9 (Широкий)", "9:16 (Сториз)"], index=0)
     
@@ -71,50 +54,48 @@ with st.form("prompt_form"):
     submit = st.form_submit_button("✨ Сгенерировать")
 
 if submit and user_input:
-    st.info("Генерирую...")
+    st.info("Генерирую с учетом анатомии...")
     
     try:
-        # 1. Перевод
+        # 1. Перевод запроса пользователя
         translator = GoogleTranslator(source='auto', target='en')
-        translated_text = translator.translate(user_input)
+        scene_description = translator.translate(user_input)
         
-        # 2. Логика (Самокат или нет?)
-        is_scooter = "scooter" in translated_text.lower() or "kick" in translated_text.lower()
-        
-        if is_scooter:
-             # Если самокат, меняем слово на kick scooter (чтобы не было мопеда)
-            final_text = translated_text.replace("scooter", "kick scooter without seat")
-        else:
-            final_text = translated_text
+        # 2. Логика замены слов (на всякий случай чистим ввод пользователя)
+        if "scooter" in scene_description.lower():
+            scene_description = scene_description.replace("scooter", "kick scooter")
 
-        # 3. Сборка промпта
-        full_prompt = f"{GLOBAL_STYLE} SCENE DETAILS: {final_text}. {NEGATIVE_PROMPT}"
+        # 3. СБОРКА ИТОГОВОГО ПРОМПТА
+        # Порядок важен: Сначала ЧТО (Анатомия), потом КАК (Стиль), потом ГДЕ (Сцена)
+        full_prompt = f"{SCOOTER_ANATOMY} {GLOBAL_STYLE} SCENE CONTEXT: {scene_description}. {NEGATIVE_PROMPT}"
+        
+        # 4. Кодирование URL
         encoded_prompt = urllib.parse.quote(full_prompt)
         seed = random.randint(1, 100000)
         
-        # 4. Формирование URL
-        base_url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
-        
-        if is_scooter:
-            # Используем либо загруженный вами Ч/Б файл, либо стандартный
-            final_url = f"{base_url}&image={control_url}&control=0.65" # 0.65 - баланс между формой и креативом
-        else:
-            final_url = base_url
+        # enhance=true иногда добавляет лишние детали (и сиденья), поэтому ставим false
+        # но добавляем seed для разнообразия
+        url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&enhance=false&seed={seed}"
         
         # 5. Запрос
-        response = requests.get(final_url, timeout=60)
+        response = requests.get(url, timeout=45)
         
         if response.status_code == 200:
             image_data = response.content
             image = Image.open(io.BytesIO(image_data))
             
             st.success("Готово!")
+            
+            # Для отладки можно посмотреть, что мы реально отправили
+            with st.expander("Посмотреть текст промпта (Debug)"):
+                st.write(full_prompt)
+                
             st.image(image, caption="Результат", use_container_width=True)
             
             st.download_button(
                 label="⬇️ Скачать PNG",
                 data=image_data,
-                file_name="generated_3d_ref.png",
+                file_name="scooter_fixed.png",
                 mime="image/png"
             )
         else:
