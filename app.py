@@ -8,15 +8,16 @@ import time
 import os
 import datetime
 
-# ИМПОРТИРУЕМ НАШ НОВЫЙ ФАЙЛ С ПРОМПТАМИ
+# !!! ВАЖНО: Импортируем файл с промптами !!!
 import prompts
 
-# --- 1. НАСТРОЙКИ ---
+# --- НАСТРОЙКИ ---
 GALLERY_DIR = "my_gallery"
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-st.set_page_config(page_title="Scooter Gen v39.2", ƒlayout="wide", page_icon="🛴")
+# Исправленная строка конфигурации (layout="wide")
+st.set_page_config(page_title="Scooter Gen v39.2", layout="wide", page_icon="🛴")
 st.title("🛴 Scooter Gen v39.2: Modular Architecture")
 
 if 'last_image_bytes' not in st.session_state:
@@ -31,8 +32,7 @@ try:
 except ImportError:
     HAS_TRANSLATOR = False
 
-# --- 2. ФУНКЦИИ ---
-
+# --- ФУНКЦИИ ---
 def make_request_with_retry(url, max_retries=3):
     for attempt in range(max_retries):
         try:
@@ -49,7 +49,7 @@ def make_request_with_retry(url, max_retries=3):
 
 def generate_image(prompt, width, height, seed, model='flux'):
     encoded_prompt = urllib.parse.quote(prompt)
-    url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&model={model}&nologo=true&enhance=true&seed={seed}"
+    url = "https://pollinations.ai/p/" + encoded_prompt + "?width=" + str(width) + "&height=" + str(height) + "&model=" + model + "&nologo=true&enhance=true&seed=" + str(seed)
     return make_request_with_retry(url)
 
 def smart_resize(image_bytes, target_w, target_h):
@@ -72,8 +72,7 @@ def translate_text(text):
     except:
         return text
 
-# --- 3. ИНТЕРФЕЙС ---
-
+# --- ИНТЕРФЕЙС ---
 tab1, tab2 = st.tabs(["🎨 Генератор", "📂 Галерея"])
 
 with tab1:
@@ -103,18 +102,19 @@ with tab1:
             env_en = translate_text(env_input) if env_input else ""
             pass_en = translate_text(passenger_input) if passenger_input else ""
 
-            # --- СБОРКА ПРОМПТА ---
+            # --- СБОРКА ПРОМПТА (ИЗ МОДУЛЯ) ---
             
-            # 1. Пассажир (Берем части из prompts.py)
+            # 1. ПАССАЖИР
             if pass_en:
                 if "Самокат" in mode:
-                    passenger_prompt = prompts.PASSENGER_PART_1 + pass_en + prompts.PASSENGER_PART_2
+                    # Собираем через плюс (безопасно)
+                    passenger_prompt = prompts.PASSENGER_START + pass_en + prompts.PASSENGER_BODY + prompts.PASSENGER_PHYSICS
                 else:
-                    passenger_prompt = f"CHARACTER: A cute 3D plastic toy character of {pass_en}."
+                    passenger_prompt = "CHARACTER: A cute 3D plastic toy character of " + pass_en + "."
             else:
                 passenger_prompt = prompts.PASSENGER_EMPTY
 
-            # 2. Фон
+            # 2. ФОН
             if "Blue" in color_theme:
                 bg_data = "BACKGROUND: Seamless Royal Blue Studio Cyclorama #0668D7. Uniform background. ENV MATERIAL: Matte Blue Plastic."
             elif "Orange" in color_theme:
@@ -127,22 +127,22 @@ with tab1:
                 bg_data = "BACKGROUND: Soft Studio Lighting. ENV MATERIAL: Colorful matte plastic."
 
             if env_en:
-                full_env = f"SCENE: {env_en}. {bg_data}"
+                full_env = "SCENE: " + env_en + ". " + bg_data
             else:
-                full_env = f"SCENE: Isolated studio shot. {bg_data}"
+                full_env = "SCENE: Isolated studio shot. " + bg_data
             
-            # 3. Объект (Берем из prompts.py)
+            # 3. ОБЪЕКТ
             if "Самокат" in mode:
                 core = prompts.SCOOTER_CORE
             elif "Машина" in mode:
                 core = prompts.CAR_CORE
             else:
-                core = f"MAIN OBJECT: {env_en}"
+                core = "MAIN OBJECT: " + env_en
 
-            # 4. ФИНАЛ (Собираем как конструктор)
-            # Используем переменные из импортированного модуля
-            raw_prompt = f"{prompts.STYLE_PREFIX} {prompts.COMPOSITION_RULES} {core} {passenger_prompt} {full_env} {prompts.COLOR_RULES} {prompts.STYLE_SUFFIX}"
-            final_prompt = f"{raw_prompt} --no {prompts.NEGATIVE_PROMPT}"
+            # 4. ФИНАЛ
+            # Простое сложение строк
+            raw_prompt = prompts.STYLE_PREFIX + " " + prompts.COMPOSITION_RULES + " " + core + " " + passenger_prompt + " " + full_env + " " + prompts.COLOR_RULES + " " + prompts.STYLE_SUFFIX
+            final_prompt = raw_prompt + " --no " + prompts.NEGATIVE_PROMPT
             
             # Размеры
             base_s = 1024
@@ -166,7 +166,7 @@ with tab1:
                 st.session_state.last_image_size = (w, h)
                 
                 t_str = datetime.datetime.now().strftime("%H%M%S")
-                fn = f"{t_str}_{seed}_{w}_{h}.png"
+                fn = t_str + "_" + str(seed) + "_" + str(w) + "_" + str(h) + ".png"
                 fp = os.path.join(GALLERY_DIR, fn)
                 
                 with open(fp, "wb") as f:
@@ -189,7 +189,7 @@ with tab2:
     if not files:
         st.info("Пусто.")
     else:
-        st.write(f"Всего: {len(files)}")
+        st.write("Всего: " + str(len(files)))
         cols = st.columns(2)
         for i, filename in enumerate(files):
             fp = os.path.join(GALLERY_DIR, filename)
@@ -210,7 +210,7 @@ with tab2:
                     
                     rw, rh = img.size
                     if rw < 2000:
-                        if c2.button("✨ 2048px", key=f"u{i}"):
+                        if c2.button("✨ 2048px", key="u"+str(i)):
                             if os.path.exists(tp):
                                 with open(tp, "r", encoding="utf-8") as f:
                                     p = f.read()
@@ -223,11 +223,12 @@ with tab2:
                                 hq_bytes = generate_image(p, 2048, 2048, old_seed)
                                 if hq_bytes:
                                     final_bytes = smart_resize(hq_bytes, 2048, 2048)
-                                    n_path = os.path.join(GALLERY_DIR, filename.replace(f"_{rw}_{rh}", "_2048_2048"))
+                                    n_path = os.path.join(GALLERY_DIR, filename.replace(str(rw)+"_"+str(rh), "2048_2048"))
                                     with open(n_path, "wb") as f:
                                         f.write(final_bytes)
                                     with open(n_path + ".txt", "w", encoding="utf-8") as f:
                                         f.write(p)
+                                    
                                     os.remove(fp)
                                     os.remove(tp)
                                     st.rerun()
@@ -236,7 +237,7 @@ with tab2:
                             else:
                                 st.error("Нет промпта")
                     
-                    if c3.button("🗑️", key=f"x{i}"):
+                    if c3.button("🗑️", key="x"+str(i)):
                         os.remove(fp)
                         if os.path.exists(tp):
                             os.remove(tp)
